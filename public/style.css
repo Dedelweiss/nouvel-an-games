@@ -497,6 +497,12 @@ input[type="text"]::placeholder {
   margin-top: 10px;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
 /* ==================== HOT SEAT GAME ==================== */
 .question-header {
   text-align: center;

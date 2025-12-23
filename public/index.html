@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎉 Jeu du Nouvel An</title>
+  <title>🎉 Jeux du Nouvel An</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,11 +11,33 @@
     <!-- Écran d'accueil -->
     <div id="home-screen" class="screen active">
       <div class="logo">🎉</div>
-      <h1>Jeu du Nouvel An</h1>
-      <p class="subtitle">Qui est le plus susceptible de... ? </p>
+      <h1>Jeux du Nouvel An</h1>
+      <p class="subtitle">Choisissez votre jeu et amusez-vous !</p>
       
       <div class="form-group">
         <input type="text" id="player-name" placeholder="Ton prénom" maxlength="20">
+      </div>
+      
+      <div class="game-selector">
+        <h3>Choisir un jeu :</h3>
+        <div class="game-options">
+          <label class="game-option selected" data-game="hotseat">
+            <input type="radio" name="game" value="hotseat" checked>
+            <div class="game-card">
+              <span class="game-icon">🔥</span>
+              <span class="game-name">Hot Seat</span>
+              <span class="game-desc">Qui est le plus susceptible de...</span>
+            </div>
+          </label>
+          <label class="game-option" data-game="undercover">
+            <input type="radio" name="game" value="undercover">
+            <div class="game-card">
+              <span class="game-icon">🕵️</span>
+              <span class="game-name">Undercover</span>
+              <span class="game-desc">Trouvez l'imposteur !</span>
+            </div>
+          </label>
+        </div>
       </div>
       
       <div class="buttons">
@@ -40,6 +62,12 @@
     <!-- Salon d'attente -->
     <div id="lobby-screen" class="screen">
       <h2>🎊 Salon d'attente</h2>
+      
+      <div class="current-game-display">
+        <span id="current-game-icon">🔥</span>
+        <span id="current-game-name">Hot Seat</span>
+      </div>
+      
       <div class="room-code-display">
         Code: <span id="display-room-code"></span>
         <button id="copy-code-btn" class="btn-small">📋</button>
@@ -50,16 +78,35 @@
         <ul id="players-list"></ul>
       </div>
       
-      <button id="start-game-btn" class="btn btn-primary hidden">
-        🚀 Lancer la partie
-      </button>
+      <div id="host-controls" class="hidden">
+        <div class="game-selector-lobby">
+          <label class="game-option-small" data-game="hotseat">
+            <input type="radio" name="game-lobby" value="hotseat">
+            <span>🔥 Hot Seat</span>
+          </label>
+          <label class="game-option-small" data-game="undercover">
+            <input type="radio" name="game-lobby" value="undercover">
+            <span>🕵️ Undercover</span>
+          </label>
+        </div>
+        <button id="start-game-btn" class="btn btn-primary">
+          🚀 Lancer la partie
+        </button>
+      </div>
       
       <p id="waiting-message" class="waiting-text">
         En attente du lancement par l'hôte...
       </p>
+      
+      <div id="game-rules" class="rules-box">
+        <h4>📖 Règles</h4>
+        <div id="rules-content"></div>
+      </div>
     </div>
 
-    <!-- Écran de jeu -->
+    <!-- ==================== HOT SEAT SCREENS ==================== -->
+    
+    <!-- Écran de jeu Hot Seat -->
     <div id="game-screen" class="screen">
       <div class="question-header">
         <span id="question-number">Question 1/10</span>
@@ -80,7 +127,7 @@
       </div>
     </div>
 
-    <!-- Écran des résultats -->
+    <!-- Écran des résultats Hot Seat -->
     <div id="results-screen" class="screen">
       <div class="results-card">
         <h2>🏆 Résultat</h2>
@@ -97,7 +144,135 @@
       </p>
     </div>
 
-    <!-- Écran de fin -->
+    <!-- ==================== UNDERCOVER SCREENS ==================== -->
+    
+    <!-- Écran de rôle Undercover -->
+    <div id="undercover-role-screen" class="screen">
+      <div class="role-reveal">
+        <h2>🤫 Ton rôle secret</h2>
+        <div id="role-card" class="role-card">
+          <div id="role-icon" class="role-icon">👤</div>
+          <div id="role-name" class="role-name">Civil</div>
+          <div class="word-reveal">
+            <span>Ton mot :</span>
+            <div id="secret-word" class="secret-word">??? </div>
+          </div>
+        </div>
+        <p class="role-tip" id="role-tip"></p>
+        <button id="ready-btn" class="btn btn-primary">Je suis prêt !  👍</button>
+      </div>
+    </div>
+
+    <!-- Écran de jeu Undercover - Phase indices -->
+    <div id="undercover-game-screen" class="screen">
+      <div class="undercover-header">
+        <span class="round-info">Tour <span id="uc-round-number">1</span></span>
+        <span class="player-count-alive">🧑‍🤝‍🧑 <span id="alive-count">0</span> en jeu</span>
+      </div>
+      
+      <div id="your-word-reminder" class="word-reminder">
+        Ton mot : <span id="reminder-word"></span>
+      </div>
+      
+      <div id="current-turn-display" class="current-turn">
+        <p>C'est au tour de : </p>
+        <div id="current-player-name" class="current-player-name"></div>
+      </div>
+      
+      <div id="hint-input-section" class="hidden">
+        <p>Donne un indice sur ton mot <br><small>(sans le dire directement ! )</small></p>
+        <div class="hint-form">
+          <input type="text" id="hint-input" placeholder="Ton indice..." maxlength="50">
+          <button id="submit-hint-btn" class="btn btn-primary">Envoyer</button>
+        </div>
+      </div>
+      
+      <div class="hints-list">
+        <h3>📝 Indices donnés</h3>
+        <ul id="hints-list"></ul>
+      </div>
+    </div>
+
+    <!-- Écran de vote Undercover -->
+    <div id="undercover-vote-screen" class="screen">
+      <h2>🗳️ Qui est l'imposteur ? </h2>
+      
+      <div class="hints-summary">
+        <h3>📝 Récapitulatif des indices</h3>
+        <ul id="vote-hints-list"></ul>
+      </div>
+      
+      <div class="vote-status">
+        <span id="uc-votes-count">0</span>/<span id="uc-total-players">0</span> ont voté
+      </div>
+      
+      <div id="uc-players-vote-grid" class="players-grid"></div>
+      
+      <div id="uc-voted-message" class="hidden">
+        ✅ Vote enregistré ! En attente des autres...
+      </div>
+    </div>
+
+    <!-- Écran d'élimination Undercover -->
+    <div id="undercover-elimination-screen" class="screen">
+      <div class="elimination-card">
+        <h2>⚡ Élimination !</h2>
+        <div id="eliminated-player-display"></div>
+        <div id="elimination-vote-details"></div>
+      </div>
+      
+      <p class="waiting-text">Prochain tour dans quelques secondes...</p>
+    </div>
+
+    <!-- Écran Mr.White Guess -->
+    <div id="mrwhite-guess-screen" class="screen">
+      <div class="mrwhite-card">
+        <h2>🎭 Dernière chance Mr.White !</h2>
+        <p>Tu as été démasqué !  Devine le mot des Civils pour gagner : </p>
+        <div class="hint-form">
+          <input type="text" id="mrwhite-guess-input" placeholder="Le mot des civils...">
+          <button id="mrwhite-guess-btn" class="btn btn-primary">Deviner</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Écran fin Undercover -->
+    <div id="undercover-end-screen" class="screen">
+      <div class="end-card">
+        <h2 id="uc-end-title">🎉 Fin de la partie !</h2>
+        <p id="uc-end-message"></p>
+        
+        <div class="word-reveal-end">
+          <div class="word-pair">
+            <div class="word-box civil">
+              <span class="label">Mot Civil</span>
+              <span id="civil-word" class="word"></span>
+            </div>
+            <div class="word-box undercover">
+              <span class="label">Mot Undercover</span>
+              <span id="undercover-word" class="word"></span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="players-roles">
+          <h3>👥 Rôles révélés</h3>
+          <ul id="roles-list"></ul>
+        </div>
+      </div>
+      
+      <button id="uc-restart-btn" class="btn btn-primary hidden">
+        🔄 Nouvelle partie
+      </button>
+      
+      <button id="uc-home-btn" class="btn btn-secondary">
+        🏠 Retour à l'accueil
+      </button>
+    </div>
+
+    <!-- ==================== COMMON END SCREEN ==================== -->
+    
+    <!-- Écran de fin Hot Seat -->
     <div id="end-screen" class="screen">
       <h2>🎆 Partie terminée !</h2>
       <div id="final-results"></div>

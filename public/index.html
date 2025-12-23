@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- Écran d'accueil -->
+    <!-- ==================== ÉCRAN D'ACCUEIL ==================== -->
     <div id="home-screen" class="screen active">
       <div class="logo">🎉</div>
       <h1>Jeux du Nouvel An</h1>
@@ -59,7 +59,7 @@
       </div>
     </div>
 
-    <!-- Salon d'attente -->
+    <!-- ==================== SALON D'ATTENTE ==================== -->
     <div id="lobby-screen" class="screen">
       <h2>🎊 Salon d'attente</h2>
       
@@ -69,7 +69,7 @@
       </div>
       
       <div class="room-code-display">
-        Code: <span id="display-room-code"></span>
+        Code :  <span id="display-room-code"></span>
         <button id="copy-code-btn" class="btn-small">📋</button>
       </div>
       
@@ -78,10 +78,33 @@
         <ul id="players-list"></ul>
       </div>
       
+      <!-- Options Hot Seat (visible seulement pour l'hôte en mode Hot Seat) -->
+      <div id="hotseat-options" class="game-options-section hidden">
+        <h3>📝 Type de questions</h3>
+        <div class="question-mode-selector">
+          <label class="mode-option selected" data-mode="default">
+            <input type="radio" name="question-mode" value="default" checked>
+            <div class="mode-card">
+              <span class="mode-icon">🎲</span>
+              <span class="mode-name">Questions aléatoires</span>
+              <span class="mode-desc">30 questions prédéfinies</span>
+            </div>
+          </label>
+          <label class="mode-option" data-mode="custom">
+            <input type="radio" name="question-mode" value="custom">
+            <div class="mode-card">
+              <span class="mode-icon">✏️</span>
+              <span class="mode-name">Questions personnalisées</span>
+              <span class="mode-desc">Chaque joueur propose 0 à 2 questions</span>
+            </div>
+          </label>
+        </div>
+      </div>
+      
       <div id="host-controls" class="hidden">
         <div class="game-selector-lobby">
-          <label class="game-option-small" data-game="hotseat">
-            <input type="radio" name="game-lobby" value="hotseat">
+          <label class="game-option-small selected" data-game="hotseat">
+            <input type="radio" name="game-lobby" value="hotseat" checked>
             <span>🔥 Hot Seat</span>
           </label>
           <label class="game-option-small" data-game="undercover">
@@ -104,9 +127,48 @@
       </div>
     </div>
 
-    <!-- ==================== HOT SEAT SCREENS ==================== -->
-    
-    <!-- Écran de jeu Hot Seat -->
+    <!-- ==================== ÉCRAN SOUMISSION QUESTIONS ==================== -->
+    <div id="questions-submit-screen" class="screen">
+      <h2>✏️ Propose tes questions !</h2>
+      <p class="subtitle">Ajoute 0, 1 ou 2 questions personnalisées.<br>Le reste sera complété par des questions aléatoires.</p>
+      
+      <div class="word-reminder">
+        ⏳ <span id="questions-submitted-count">0</span>/<span id="questions-total-players">0</span> joueurs ont validé
+      </div>
+      
+      <div class="questions-form">
+        <div class="question-input-group">
+          <label>Question 1 (optionnelle) :</label>
+          <div class="question-prefix">Qui est le plus susceptible de...</div>
+          <input type="text" id="custom-question-1" placeholder="... danser sur la table ?" maxlength="100">
+        </div>
+        <div class="question-input-group">
+          <label>Question 2 (optionnelle) :</label>
+          <div class="question-prefix">Qui est le plus susceptible de...</div>
+          <input type="text" id="custom-question-2" placeholder="...oublier son téléphone ?" maxlength="100">
+        </div>
+        
+        <div class="questions-info">
+          💡 <strong>Laisse vide</strong> pour des questions aléatoires
+        </div>
+        
+        <button id="submit-questions-btn" class="btn btn-primary">
+          📤 Valider mes questions
+        </button>
+        
+        <div id="questions-submitted-message" class="hidden">
+          ✅ Validé ! <br>
+          <span id="questions-submitted-detail"></span>
+        </div>
+      </div>
+      
+      <div class="submitted-players">
+        <h3>✅ Joueurs prêts</h3>
+        <ul id="submitted-players-list"></ul>
+      </div>
+    </div>
+
+    <!-- ==================== HOT SEAT - JEU ==================== -->
     <div id="game-screen" class="screen">
       <div class="question-header">
         <span id="question-number">Question 1/10</span>
@@ -127,7 +189,7 @@
       </div>
     </div>
 
-    <!-- Écran des résultats Hot Seat -->
+    <!-- ==================== HOT SEAT - RÉSULTATS ==================== -->
     <div id="results-screen" class="screen">
       <div class="results-card">
         <h2>🏆 Résultat</h2>
@@ -144,9 +206,21 @@
       </p>
     </div>
 
-    <!-- ==================== UNDERCOVER SCREENS ==================== -->
-    
-    <!-- Écran de rôle Undercover -->
+    <!-- ==================== HOT SEAT - FIN ==================== -->
+    <div id="end-screen" class="screen">
+      <h2>🎆 Partie terminée !</h2>
+      <div id="final-results"></div>
+      
+      <button id="restart-btn" class="btn btn-primary hidden">
+        🔄 Nouvelle partie
+      </button>
+      
+      <button id="home-btn" class="btn btn-secondary">
+        🏠 Retour à l'accueil
+      </button>
+    </div>
+
+    <!-- ==================== UNDERCOVER - RÉVÉLATION RÔLE ==================== -->
     <div id="undercover-role-screen" class="screen">
       <div class="role-reveal">
         <h2>🤫 Ton rôle secret</h2>
@@ -163,44 +237,48 @@
       </div>
     </div>
 
-    <!-- Écran de jeu Undercover - Phase indices -->
+    <!-- ==================== UNDERCOVER - JEU (INDICES ORAUX) ==================== -->
     <div id="undercover-game-screen" class="screen">
       <div class="undercover-header">
         <span class="round-info">Tour <span id="uc-round-number">1</span></span>
         <span class="player-count-alive">🧑‍🤝‍🧑 <span id="alive-count">0</span> en jeu</span>
       </div>
       
-      <div id="your-word-reminder" class="word-reminder">
-        Ton mot : <span id="reminder-word"></span>
+      <div id="your-word-reminder-uc" class="word-reminder">
+        🔒 Ton mot :  <span id="reminder-word"></span>
       </div>
       
-      <div id="current-turn-display" class="current-turn">
-        <p>C'est au tour de : </p>
-        <div id="current-player-name" class="current-player-name"></div>
+      <div class="current-turn">
+        <p>C'est au tour de :</p>
+        <div id="current-player-name" class="current-player-name">...</div>
       </div>
       
-      <div id="hint-input-section" class="hidden">
-        <p>Donne un indice sur ton mot <br><small>(sans le dire directement ! )</small></p>
-        <div class="hint-form">
-          <input type="text" id="hint-input" placeholder="Ton indice..." maxlength="50">
-          <button id="submit-hint-btn" class="btn btn-primary">Envoyer</button>
+      <!-- Section quand c'est ton tour -->
+      <div id="hint-action-section" class="hint-action hidden">
+        <p>📢 Donne ton indice <strong>à voix haute</strong> puis clique : </p>
+        <button id="hint-done-btn" class="btn btn-primary pulse">
+          ✅ J'ai donné mon indice
+        </button>
+      </div>
+      
+      <!-- Section quand c'est le tour d'un autre -->
+      <div id="waiting-hint-section" class="waiting-hint">
+        <p>👂 Écoute bien l'indice...</p>
+      </div>
+      
+      <div class="hints-progress">
+        <h3>📝 Progression</h3>
+        <div class="progress-bar">
+          <span id="hints-count">0</span> / <span id="hints-total">0</span> indices donnés
         </div>
-      </div>
-      
-      <div class="hints-list">
-        <h3>📝 Indices donnés</h3>
-        <ul id="hints-list"></ul>
+        <ul id="hints-given-list"></ul>
       </div>
     </div>
 
-    <!-- Écran de vote Undercover -->
+    <!-- ==================== UNDERCOVER - VOTE ==================== -->
     <div id="undercover-vote-screen" class="screen">
       <h2>🗳️ Qui est l'imposteur ? </h2>
-      
-      <div class="hints-summary">
-        <h3>📝 Récapitulatif des indices</h3>
-        <ul id="vote-hints-list"></ul>
-      </div>
+      <p class="vote-instruction">Votez pour la personne que vous soupçonnez !</p>
       
       <div class="vote-status">
         <span id="uc-votes-count">0</span>/<span id="uc-total-players">0</span> ont voté
@@ -213,7 +291,7 @@
       </div>
     </div>
 
-    <!-- Écran d'élimination Undercover -->
+    <!-- ==================== UNDERCOVER - ÉLIMINATION ==================== -->
     <div id="undercover-elimination-screen" class="screen">
       <div class="elimination-card">
         <h2>⚡ Élimination !</h2>
@@ -224,7 +302,7 @@
       <p class="waiting-text">Prochain tour dans quelques secondes...</p>
     </div>
 
-    <!-- Écran Mr.White Guess -->
+    <!-- ==================== UNDERCOVER - MR.WHITE DEVINE ==================== -->
     <div id="mrwhite-guess-screen" class="screen">
       <div class="mrwhite-card">
         <h2>🎭 Dernière chance Mr.White !</h2>
@@ -236,7 +314,7 @@
       </div>
     </div>
 
-    <!-- Écran fin Undercover -->
+    <!-- ==================== UNDERCOVER - FIN ==================== -->
     <div id="undercover-end-screen" class="screen">
       <div class="end-card">
         <h2 id="uc-end-title">🎉 Fin de la partie !</h2>
@@ -266,22 +344,6 @@
       </button>
       
       <button id="uc-home-btn" class="btn btn-secondary">
-        🏠 Retour à l'accueil
-      </button>
-    </div>
-
-    <!-- ==================== COMMON END SCREEN ==================== -->
-    
-    <!-- Écran de fin Hot Seat -->
-    <div id="end-screen" class="screen">
-      <h2>🎆 Partie terminée !</h2>
-      <div id="final-results"></div>
-      
-      <button id="restart-btn" class="btn btn-primary hidden">
-        🔄 Nouvelle partie
-      </button>
-      
-      <button id="home-btn" class="btn btn-secondary">
         🏠 Retour à l'accueil
       </button>
     </div>

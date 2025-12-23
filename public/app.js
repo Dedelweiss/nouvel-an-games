@@ -7,8 +7,10 @@ let state = {
   roomCode: null,
   isHost: false,
   gameType: 'hotseat',
+  questionMode: 'default',
   players: [],
   hasVoted: false,
+  hasSubmittedQuestions: false,
   myWord: null,
   myRole: null
 };
@@ -17,10 +19,10 @@ let state = {
 const screens = {
   home: document.getElementById('home-screen'),
   lobby: document.getElementById('lobby-screen'),
+  questionsSubmit: document.getElementById('questions-submit-screen'),
   game: document.getElementById('game-screen'),
   results: document.getElementById('results-screen'),
   end: document.getElementById('end-screen'),
-  // Undercover screens
   undercoverRole: document.getElementById('undercover-role-screen'),
   undercoverGame: document.getElementById('undercover-game-screen'),
   undercoverVote: document.getElementById('undercover-vote-screen'),
@@ -29,7 +31,6 @@ const screens = {
   undercoverEnd: document.getElementById('undercover-end-screen')
 };
 
-// Avatars aléatoires
 const avatars = ['😀', '😎', '🥳', '🤩', '😺', '🦊', '🐻', '🐼', '🐨', '🦁', '🐸', '🐙', '🦋', '🐢', '🦄', '🐳', '🦜', '🦔', '🐲', '🎃'];
 
 // ==================== FONCTIONS UTILITAIRES ====================
@@ -65,36 +66,28 @@ function updateRulesDisplay(gameType) {
       <ul>
         <li>Chaque joueur reçoit un mot secret</li>
         <li>Les Undercovers ont un mot légèrement différent</li>
-        <li>À tour de rôle, donnez un indice sur votre mot</li>
-        <li>Votez pour éliminer celui que vous pensez être l'imposteur</li>
-        <li>Civils gagnent si tous les Undercovers sont éliminés</li>
-        <li>Undercovers gagnent s'ils deviennent majoritaires</li>
+        <li>À tour de rôle, donnez un indice <strong>à l'oral</strong></li>
+        <li>Votez pour éliminer l'imposteur</li>
       </ul>
     `;
   } else {
     rulesContent.innerHTML = `
-      <p>🔥 <strong>Hot Seat</strong> - Qui est le plus susceptible de...?</p>
+      <p>🔥 <strong>Hot Seat</strong> - Qui est le plus susceptible de... ?</p>
       <ul>
         <li>Une question apparaît</li>
-        <li>Tout le monde vote pour la personne qui correspond le mieux</li>
+        <li>Tout le monde vote pour la personne qui correspond</li>
         <li>Les résultats sont révélés quand tout le monde a voté</li>
       </ul>
     `;
   }
 }
 
-// ==================== SÉLECTION DU JEU (PAGE D'ACCUEIL) ====================
+// ==================== SÉLECTION DU JEU ====================
 
-// Gestion de la sélection du jeu sur la page d'accueil
 document.querySelectorAll('.game-option').forEach(option => {
   option.addEventListener('click', () => {
-    // Retirer la classe selected de tous
-    document.querySelectorAll('.game-option').forEach(opt => {
-      opt.classList.remove('selected');
-    });
-    // Ajouter la classe selected à celui cliqué
+    document.querySelectorAll('.game-option').forEach(opt => opt.classList.remove('selected'));
     option.classList.add('selected');
-    // Cocher le radio button
     const radio = option.querySelector('input[type="radio"]');
     if (radio) {
       radio.checked = true;
@@ -103,13 +96,9 @@ document.querySelectorAll('.game-option').forEach(option => {
   });
 });
 
-// ==================== SÉLECTION DU JEU (LOBBY - HÔTE) ====================
-
 document.querySelectorAll('.game-option-small').forEach(option => {
   option.addEventListener('click', () => {
-    document.querySelectorAll('.game-option-small').forEach(opt => {
-      opt.classList.remove('selected');
-    });
+    document.querySelectorAll('.game-option-small').forEach(opt => opt.classList.remove('selected'));
     option.classList.add('selected');
     const radio = option.querySelector('input[type="radio"]');
     if (radio) {
@@ -118,9 +107,34 @@ document.querySelectorAll('.game-option-small').forEach(option => {
       socket.emit('changeGameType', radio.value);
       updateGameDisplay(radio.value);
       updateRulesDisplay(radio.value);
+      updateHotSeatOptionsVisibility(radio.value);
     }
   });
 });
+
+// ==================== SÉLECTION DU MODE DE QUESTIONS ====================
+
+document.querySelectorAll('.mode-option').forEach(option => {
+  option.addEventListener('click', () => {
+    document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('selected'));
+    option.classList.add('selected');
+    const radio = option.querySelector('input[type="radio"]');
+    if (radio) {
+      radio.checked = true;
+      state.questionMode = radio.value;
+      socket.emit('changeQuestionMode', radio.value);
+    }
+  });
+});
+
+function updateHotSeatOptionsVisibility(gameType) {
+  const hotSeatOptions = document.getElementById('hotseat-options');
+  if (gameType === 'hotseat' && state.isHost) {
+    hotSeatOptions.classList.remove('hidden');
+  } else {
+    hotSeatOptions.classList.add('hidden');
+  }
+}
 
 function updateGameDisplay(gameType) {
   const icon = document.getElementById('current-game-icon');
@@ -138,7 +152,7 @@ function updateGameDisplay(gameType) {
 
 document.getElementById('create-room-btn').addEventListener('click', () => {
   const name = document.getElementById('player-name').value.trim();
-  if (! name) {
+  if (!name) {
     showToast('Entre ton prénom ! ', 'error');
     return;
   }
@@ -149,15 +163,14 @@ document.getElementById('create-room-btn').addEventListener('click', () => {
 });
 
 document.getElementById('join-room-btn').addEventListener('click', () => {
-  const joinForm = document.getElementById('join-form');
-  joinForm.classList.toggle('hidden');
+  document.getElementById('join-form').classList.toggle('hidden');
 });
 
 document.getElementById('confirm-join-btn').addEventListener('click', () => {
   const name = document.getElementById('player-name').value.trim();
   const code = document.getElementById('room-code').value.trim().toUpperCase();
   
-  if (! name) {
+  if (!name) {
     showToast('Entre ton prénom !', 'error');
     return;
   }
@@ -176,7 +189,7 @@ document.getElementById('copy-code-btn').addEventListener('click', () => {
 });
 
 document.getElementById('start-game-btn').addEventListener('click', () => {
-  socket.emit('startGame');
+  socket.emit('startGame', { questionMode: state.questionMode });
 });
 
 document.getElementById('next-question-btn').addEventListener('click', () => {
@@ -191,33 +204,59 @@ document.getElementById('home-btn').addEventListener('click', () => {
   location.reload();
 });
 
+// Questions personnalisées - Envoyer (0, 1 ou 2 questions)
+document.getElementById('submit-questions-btn')?.addEventListener('click', () => {
+  const q1 = document.getElementById('custom-question-1').value.trim();
+  const q2 = document.getElementById('custom-question-2').value.trim();
+  
+  const questions = [];
+  
+  if (q1) {
+    // Ajouter le préfixe si pas déjà présent
+    const fullQ1 = q1.toLowerCase().startsWith('qui') ? q1 : `Qui est le plus susceptible de ${q1}`;
+    questions.push(fullQ1);
+  }
+  
+  if (q2) {
+    const fullQ2 = q2.toLowerCase().startsWith('qui') ? q2 :  `Qui est le plus susceptible de ${q2}`;
+    questions.push(fullQ2);
+  }
+  
+  socket.emit('submitQuestions', { questions });
+  
+  state.hasSubmittedQuestions = true;
+  document.getElementById('submit-questions-btn').disabled = true;
+  document.getElementById('submit-questions-btn').textContent = '✅ Envoyé ! ';
+  document.getElementById('questions-submitted-message').classList.remove('hidden');
+  
+  const count = questions.length;
+  const randomCount = 2 - count;
+  let message = '';
+  if (count === 0) {
+    message = '2 questions aléatoires seront ajoutées pour toi';
+  } else if (count === 1) {
+    message = '1 question aléatoire sera ajoutée pour compléter';
+  } else {
+    message = 'Tes 2 questions ont été ajoutées ! ';
+  }
+  document.getElementById('questions-submitted-detail').textContent = message;
+});
+
 // Undercover buttons
 document.getElementById('ready-btn')?.addEventListener('click', () => {
   showScreen('undercoverGame');
 });
 
-document.getElementById('submit-hint-btn')?.addEventListener('click', () => {
-  const hintInput = document.getElementById('hint-input');
-  const hint = hintInput.value.trim();
-  if (! hint) {
-    showToast('Entre un indice !', 'error');
-    return;
-  }
-  socket.emit('giveHint', hint);
-  hintInput.value = '';
-});
-
-document.getElementById('hint-input')?.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    document.getElementById('submit-hint-btn').click();
-  }
+document.getElementById('hint-done-btn')?.addEventListener('click', () => {
+  socket.emit('hintDone');
+  document.getElementById('hint-done-btn').disabled = true;
+  document.getElementById('hint-done-btn').textContent = '✅ Indice donné !';
 });
 
 document.getElementById('mrwhite-guess-btn')?.addEventListener('click', () => {
-  const guessInput = document.getElementById('mrwhite-guess-input');
-  const guess = guessInput.value.trim();
-  if (!guess) {
-    showToast('Entre un mot !', 'error');
+  const guess = document.getElementById('mrwhite-guess-input').value.trim();
+  if (! guess) {
+    showToast('Entre un mot ! ', 'error');
     return;
   }
   socket.emit('mrWhiteGuessWord', guess);
@@ -244,7 +283,6 @@ socket.on('roomCreated', ({ roomCode, playerId, gameType, players }) => {
   document.getElementById('host-controls').classList.remove('hidden');
   document.getElementById('waiting-message').classList.add('hidden');
   
-  // Sélectionner le bon jeu dans le lobby
   document.querySelectorAll('.game-option-small').forEach(opt => {
     opt.classList.remove('selected');
     const radio = opt.querySelector('input[type="radio"]');
@@ -256,20 +294,23 @@ socket.on('roomCreated', ({ roomCode, playerId, gameType, players }) => {
   
   updateGameDisplay(gameType);
   updateRulesDisplay(gameType);
+  updateHotSeatOptionsVisibility(gameType);
   updatePlayersList();
   showScreen('lobby');
-  showToast('Partie créée !', 'success');
+  showToast('Partie créée ! ', 'success');
 });
 
-socket.on('roomJoined', ({ roomCode, playerId, gameType, players }) => {
+socket.on('roomJoined', ({ roomCode, playerId, gameType, questionMode, players }) => {
   state.roomCode = roomCode;
   state.playerId = playerId;
   state.isHost = false;
   state.gameType = gameType;
+  state.questionMode = questionMode || 'default';
   state.players = players;
   
   document.getElementById('display-room-code').textContent = roomCode;
   document.getElementById('host-controls').classList.add('hidden');
+  document.getElementById('hotseat-options').classList.add('hidden');
   document.getElementById('waiting-message').classList.remove('hidden');
   
   updateGameDisplay(gameType);
@@ -287,11 +328,12 @@ socket.on('playerJoined', ({ players }) => {
 socket.on('playerLeft', ({ players }) => {
   state.players = players;
   const me = players.find(p => p.id === state.playerId);
-  if (me && me.isHost && ! state.isHost) {
+  if (me && me.isHost && !state.isHost) {
     state.isHost = true;
     document.getElementById('host-controls').classList.remove('hidden');
+    document.getElementById('hotseat-options').classList.remove('hidden');
     document.getElementById('waiting-message').classList.add('hidden');
-    showToast('Tu es maintenant l\'hôte ! ', 'success');
+    showToast('Tu es maintenant l\'hôte !', 'success');
   }
   updatePlayersList();
 });
@@ -311,6 +353,18 @@ socket.on('gameTypeChanged', ({ gameType }) => {
   });
 });
 
+socket.on('questionModeChanged', ({ questionMode }) => {
+  state.questionMode = questionMode;
+  document.querySelectorAll('.mode-option').forEach(opt => {
+    opt.classList.remove('selected');
+    const radio = opt.querySelector('input[type="radio"]');
+    if (radio && radio.value === questionMode) {
+      opt.classList.add('selected');
+      radio.checked = true;
+    }
+  });
+});
+
 socket.on('gameStarted', (data) => {
   if (data.gameType === 'undercover') {
     startUndercoverGame(data);
@@ -322,8 +376,13 @@ socket.on('gameStarted', (data) => {
 socket.on('gameRestarted', ({ players }) => {
   state.players = players;
   state.hasVoted = false;
+  state.hasSubmittedQuestions = false;
   state.myWord = null;
   state.myRole = null;
+  
+  // Reset questions form
+  resetQuestionsForm();
+  
   updatePlayersList();
   showScreen('lobby');
   showToast('Nouvelle partie ! ', 'success');
@@ -332,6 +391,58 @@ socket.on('gameRestarted', ({ players }) => {
 socket.on('error', ({ message }) => {
   showToast(message, 'error');
 });
+
+// ==================== QUESTIONS PERSONNALISÉES ====================
+
+socket.on('collectQuestions', ({ totalPlayers }) => {
+  state.hasSubmittedQuestions = false;
+  resetQuestionsForm();
+  
+  document.getElementById('questions-total-players').textContent = totalPlayers;
+  document.getElementById('questions-submitted-count').textContent = '0';
+  document.getElementById('submitted-players-list').innerHTML = '';
+  
+  showScreen('questionsSubmit');
+});
+
+socket.on('playerSubmittedQuestions', ({ playerName, submittedCount, totalPlayers, customCount }) => {
+  document.getElementById('questions-submitted-count').textContent = submittedCount;
+  
+  const list = document.getElementById('submitted-players-list');
+  const playerIndex = state.players.findIndex(p => p.name === playerName);
+  
+  let detail = '';
+  if (customCount === 0) {
+    detail = '(2 aléatoires)';
+  } else if (customCount === 1) {
+    detail = '(1 perso + 1 aléatoire)';
+  } else {
+    detail = '(2 perso)';
+  }
+  
+  list.innerHTML += `
+    <li>
+      ${getAvatar(playerIndex)} ${playerName} ✅ <span class="question-detail">${detail}</span>
+    </li>
+  `;
+});
+
+socket.on('allQuestionsCollected', ({ totalQuestions }) => {
+  showToast(`${totalQuestions} questions prêtes !  Lancement...`, 'success');
+});
+
+function resetQuestionsForm() {
+  const submitBtn = document.getElementById('submit-questions-btn');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '📤 Valider mes questions';
+  }
+  document.getElementById('questions-submitted-message')?.classList.add('hidden');
+  const q1 = document.getElementById('custom-question-1');
+  const q2 = document.getElementById('custom-question-2');
+  if (q1) q1.value = '';
+  if (q2) q2.value = '';
+}
 
 // ==================== HOT SEAT ====================
 
@@ -421,11 +532,7 @@ function showResults(winners, votes, voteDetails, isLastQuestion) {
   const nextBtn = document.getElementById('next-question-btn');
   const waitingNext = document.getElementById('waiting-next');
   
-  if (isLastQuestion) {
-    nextBtn.textContent = 'Voir les résultats finaux 🏆';
-  } else {
-    nextBtn.textContent = 'Question suivante ➡️';
-  }
+  nextBtn.textContent = isLastQuestion ? 'Voir les résultats finaux 🏆' :  'Question suivante ➡️';
   
   if (state.isHost) {
     nextBtn.classList.remove('hidden');
@@ -458,7 +565,6 @@ function startUndercoverGame(data) {
   state.myRole = data.yourRole;
   state.hasVoted = false;
   
-  // Afficher l'écran de rôle
   const roleCard = document.getElementById('role-card');
   const roleIcon = document.getElementById('role-icon');
   const roleName = document.getElementById('role-name');
@@ -470,7 +576,7 @@ function startUndercoverGame(data) {
   if (data.yourRole === 'civil') {
     roleIcon.textContent = '👤';
     roleName.textContent = 'Civil';
-    roleTip.textContent = '💡 Donne des indices subtils pour prouver que tu as le bon mot, sans trop en révéler !';
+    roleTip.textContent = '💡 Donne des indices subtils à l\'oral pour prouver que tu as le bon mot !';
   } else if (data.yourRole === 'undercover') {
     roleIcon.textContent = '🕵️';
     roleName.textContent = 'Undercover';
@@ -484,28 +590,42 @@ function startUndercoverGame(data) {
   secretWord.textContent = data.yourWord;
   document.getElementById('reminder-word').textContent = data.yourWord;
   
+  document.getElementById('uc-round-number').textContent = '1';
+  document.getElementById('alive-count').textContent = data.players.length;
+  document.getElementById('hints-given-list').innerHTML = '';
+  document.getElementById('hints-count').textContent = '0';
+  document.getElementById('hints-total').textContent = data.players.length;
+  
+  // Reset hint button
+  const hintBtn = document.getElementById('hint-done-btn');
+  if (hintBtn) {
+    hintBtn.disabled = false;
+    hintBtn.textContent = '✅ J\'ai donné mon indice';
+  }
+  
+  updateCurrentPlayer(data.currentPlayerId);
   showScreen('undercoverRole');
 }
 
-socket.on('hintGiven', ({ playerId, playerName, hint, nextPlayerId, hints }) => {
-  updateHintsList(hints);
+socket.on('hintGiven', ({ playerId, playerName, nextPlayerId, hintsCount, totalPlayers }) => {
+  const list = document.getElementById('hints-given-list');
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  list.innerHTML += `
+    <li class="hint-done-item">
+      ${getAvatar(playerIndex)} ${playerName} a donné son indice ✅
+    </li>
+  `;
+  
+  document.getElementById('hints-count').textContent = hintsCount;
+  document.getElementById('hints-total').textContent = totalPlayers;
+  
   updateCurrentPlayer(nextPlayerId);
 });
 
-socket.on('undercoverVotePhase', ({ hints, players, roundNumber }) => {
+socket.on('undercoverVotePhase', ({ players, roundNumber }) => {
   state.players = players;
   state.hasVoted = false;
   
-  // Afficher les indices
-  const hintsList = document.getElementById('vote-hints-list');
-  hintsList.innerHTML = hints.map(h => `
-    <li>
-      <span class="hint-player">${h.playerName}</span>
-      <span class="hint-text">"${h.hint}"</span>
-    </li>
-  `).join('');
-  
-  // Afficher la grille de vote
   document.getElementById('uc-votes-count').textContent = '0';
   document.getElementById('uc-total-players').textContent = players.length;
   document.getElementById('uc-voted-message').classList.add('hidden');
@@ -555,7 +675,7 @@ socket.on('undercoverElimination', ({ eliminatedPlayer, wasUndercover, wasMrWhit
   }
   
   display.innerHTML = `
-    <div class="player-name">${eliminatedPlayer}</div>
+    <div class="eliminated-name">${eliminatedPlayer}</div>
     <div class="role-reveal ${roleClass}">était ${roleText}</div>
   `;
   
@@ -569,7 +689,7 @@ socket.on('undercoverElimination', ({ eliminatedPlayer, wasUndercover, wasMrWhit
   showScreen('undercoverElimination');
 });
 
-socket.on('undercoverTie', ({ message, tiedPlayers }) => {
+socket.on('undercoverTie', ({ message }) => {
   showToast(message, 'info');
 });
 
@@ -579,7 +699,13 @@ socket.on('undercoverNewRound', ({ roundNumber, currentPlayerId, players }) => {
   
   document.getElementById('uc-round-number').textContent = roundNumber;
   document.getElementById('alive-count').textContent = players.length;
-  document.getElementById('hints-list').innerHTML = '';
+  document.getElementById('hints-given-list').innerHTML = '';
+  document.getElementById('hints-count').textContent = '0';
+  document.getElementById('hints-total').textContent = players.length;
+  
+  const hintBtn = document.getElementById('hint-done-btn');
+  hintBtn.disabled = false;
+  hintBtn.textContent = '✅ J\'ai donné mon indice';
   
   updateCurrentPlayer(currentPlayerId);
   showScreen('undercoverGame');
@@ -611,7 +737,7 @@ socket.on('undercoverGameEnd', ({ winner, message, wordPair, allPlayers }) => {
   rolesList.innerHTML = allPlayers.map(p => `
     <li>
       <span>${p.name}</span>
-      <span class="role-badge ${p.role.toLowerCase().replace(' ', '')}">${p.role}</span>
+      <span class="role-badge ${p.role.toLowerCase().replace('. ', '').replace(' ', '')}">${p.role}</span>
     </li>
   `).join('');
   
@@ -627,31 +753,23 @@ socket.on('playerDisconnected', ({ playerName, players }) => {
   showToast(`${playerName} a quitté la partie`, 'error');
 });
 
-function updateHintsList(hints) {
-  const list = document.getElementById('hints-list');
-  list.innerHTML = hints.map(h => `
-    <li class="hint-item">
-      <span class="player-name">${h.playerName}</span>
-      <span class="hint-text">"${h.hint}"</span>
-    </li>
-  `).join('');
-}
-
 function updateCurrentPlayer(currentPlayerId) {
   const currentPlayer = state.players.find(p => p.id === currentPlayerId);
   const nameDisplay = document.getElementById('current-player-name');
-  const hintSection = document.getElementById('hint-input-section');
+  const hintSection = document.getElementById('hint-action-section');
+  const waitingSection = document.getElementById('waiting-hint-section');
   
   if (currentPlayer) {
-    nameDisplay.textContent = currentPlayer.name;
-    
     if (currentPlayerId === state.playerId) {
-      nameDisplay.textContent = 'TOI ! ';
+      nameDisplay.textContent = '🎯 C\'est à TOI !';
       nameDisplay.classList.add('you');
       hintSection.classList.remove('hidden');
+      waitingSection.classList.add('hidden');
     } else {
+      nameDisplay.textContent = currentPlayer.name;
       nameDisplay.classList.remove('you');
       hintSection.classList.add('hidden');
+      waitingSection.classList.remove('hidden');
     }
   }
   

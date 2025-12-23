@@ -9,106 +9,10 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// ==================== QUESTIONS HOT SEAT ====================
-const hotSeatQuestions = [
-  "Qui est le plus susceptible de danser sur la table ce soir ?",
-  "Qui va s'endormir en premier ? ",
-  "Qui est le plus bavard du groupe ?",
-  "Qui ferait le meilleur discours de minuit ?",
-  "Qui est le plus susceptible d'oublier ses bonnes résolutions ?",
-  "Qui est le roi/la reine des selfies ?",
-  "Qui arriverait en retard à son propre mariage ?",
-  "Qui survivrait le plus longtemps sur une île déserte ?",
-  "Qui est le plus susceptible de devenir célèbre ?",
-  "Qui a le rire le plus contagieux ?",
-  "Qui est le plus gourmand ? ",
-  "Qui est le pire menteur ?",
-  "Qui serait le meilleur super-héros ?",
-  "Qui est le plus susceptible de gagner au loto et de tout dépenser en une semaine ?",
-  "Qui est le plus romantique ?",
-  "Qui ferait le meilleur détective ?",
-  "Qui est le plus susceptible de pleurer devant un film ?",
-  "Qui est le plus chanceux ?",
-  "Qui est le plus susceptible de faire une bêtise ce soir ?",
-  "Qui a le meilleur sens de l'humour ?",
-  "Qui est le plus susceptible de perdre son téléphone ?",
-  "Qui serait le pire coloc ?",
-  "Qui est le plus créatif ?",
-  "Qui est le plus susceptible de lancer un nouveau trend ?",
-  "Qui est le meilleur cuisinier ?",
-  "Qui est le plus compétitif ?",
-  "Qui est le plus susceptible de finir les restes ? ",
-  "Qui donnerait les meilleurs conseils ?",
-  "Qui est le plus susceptible de faire un road trip spontané ?",
-  "Qui est le plus têtu ?"
-];
-
-// ==================== PAIRES DE MOTS UNDERCOVER ====================
-const wordPairs = [
-  ["Pizza", "Tarte"],
-  ["Facebook", "Instagram"],
-  ["Batman", "Superman"],
-  ["Coca-Cola", "Pepsi"],
-  ["McDonald's", "Burger King"],
-  ["Chat", "Chien"],
-  ["Paris", "Londres"],
-  ["Plage", "Piscine"],
-  ["Ski", "Snowboard"],
-  ["Bière", "Vin"],
-  ["Café", "Thé"],
-  ["Netflix", "YouTube"],
-  ["iPhone", "Samsung"],
-  ["Chocolat", "Caramel"],
-  ["Dentiste", "Médecin"],
-  ["Bus", "Métro"],
-  ["Guitare", "Piano"],
-  ["Football", "Rugby"],
-  ["Croissant", "Pain au chocolat"],
-  ["Noël", "Nouvel An"],
-  ["Mariage", "Anniversaire"],
-  ["Livre", "Film"],
-  ["Lunettes", "Lentilles"],
-  ["Tatouage", "Piercing"],
-  ["Fromage", "Beurre"],
-  ["Champagne", "Prosecco"],
-  ["TikTok", "Instagram Reels"],
-  ["Uber", "Taxi"],
-  ["Airbnb", "Hôtel"],
-  ["Google", "Bing"],
-  ["WhatsApp", "Messenger"],
-  ["Mario", "Sonic"],
-  ["Harry Potter", "Seigneur des Anneaux"],
-  ["Star Wars", "Star Trek"],
-  ["Stranger Things", "Black Mirror"],
-  ["Spotify", "Apple Music"],
-  ["Jean", "Pantalon"],
-  ["Baskets", "Chaussures"],
-  ["Sushi", "Maki"],
-  ["Hamburger", "Hot-dog"],
-  ["Crêpe", "Gaufre"],
-  ["Glace", "Sorbet"],
-  ["Mojito", "Caïpirinha"],
-  ["Vodka", "Rhum"],
-  ["Karaoké", "Blind test"],
-  ["Poker", "Blackjack"],
-  ["Monopoly", "Uno"],
-  ["Escape Game", "Laser Game"],
-  ["Camping", "Glamping"],
-  ["Vélo", "Trottinette"],
-  ["Avion", "Train"],
-  ["Montagne", "Mer"],
-  ["Été", "Printemps"],
-  ["Lundi", "Mardi"],
-  ["Matin", "Soir"],
-  ["Douche", "Bain"],
-  ["Canapé", "Fauteuil"],
-  ["Coussin", "Oreiller"],
-  ["Couverture", "Plaid"],
-  ["Bougie", "Encens"]
-];
-
 // Stockage des parties en mémoire
 const rooms = new Map();
+
+// ==================== FONCTIONS UTILITAIRES ====================
 
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -123,7 +27,12 @@ function shuffleArray(array) {
   return shuffled;
 }
 
-// Calculer le nombre d'imposteurs selon le nombre de joueurs
+function getRandomQuestions(count, exclude = []) {
+  const available = hotSeatQuestions.filter(q => !exclude.includes(q));
+  const shuffled = shuffleArray(available);
+  return shuffled.slice(0, count);
+}
+
 function getUndercoverCount(playerCount) {
   if (playerCount <= 6) return 1;
   if (playerCount <= 12) return 2;
@@ -131,7 +40,6 @@ function getUndercoverCount(playerCount) {
   return 4;
 }
 
-// Vérifier les conditions de victoire Undercover
 function checkUndercoverVictory(room) {
   const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
   const aliveUndercovers = alivePlayers.filter(p => p.isUndercover);
@@ -150,18 +58,17 @@ function checkUndercoverVictory(room) {
     return {
       gameOver: true,
       winner: 'undercover',
-      message:  '🕵️ Les Undercovers ont gagné !  Ils ont infiltré le groupe !'
+      message: '🕵️ Les Undercovers ont gagné !  Ils ont infiltré le groupe !'
     };
   }
 
   return { gameOver: false };
 }
 
-// Fonction helper pour formater les données joueur
 function formatPlayerData(player) {
   return {
     id: player.id,
-    name: player.name,
+    name:  player.name,
     isHost: player.isHost,
     isAlive: player.isAlive
   };
@@ -171,14 +78,15 @@ function formatPlayersArray(playersMap) {
   return Array.from(playersMap.values()).map(formatPlayerData);
 }
 
+// ==================== SOCKET.IO ====================
+
 io.on('connection', (socket) => {
   console.log('Utilisateur connecté:', socket.id);
 
   // ==================== CRÉATION DE PARTIE ====================
   socket.on('createRoom', (data) => {
-    // Gérer les deux formats possibles (string ou objet)
     let playerName, gameType;
-    
+
     if (typeof data === 'string') {
       playerName = data;
       gameType = 'hotseat';
@@ -193,12 +101,15 @@ io.on('connection', (socket) => {
     const room = {
       code: roomCode,
       host: odId,
-      gameType:  gameType,
-      players: new Map(),
+      gameType: gameType,
+      questionMode: 'default',
+      players:  new Map(),
       gameStarted: false,
       // Hot Seat
       currentQuestionIndex: 0,
       questions: shuffleArray(hotSeatQuestions),
+      customQuestions: [],
+      submittedPlayers: new Set(),
       votes: new Map(),
       results: [],
       // Undercover
@@ -213,14 +124,15 @@ io.on('connection', (socket) => {
 
     room.players.set(odId, {
       id: odId,
-      name:  playerName,
+      name: playerName,
       socketId: socket.id,
       isHost: true,
       isAlive: true,
       isUndercover: false,
       isMrWhite: false,
       word: null,
-      hasGivenHint: false
+      hasGivenHint: false,
+      submittedQuestions: []
     });
 
     rooms.set(roomCode, room);
@@ -230,7 +142,7 @@ io.on('connection', (socket) => {
 
     socket.emit('roomCreated', {
       roomCode,
-      odId,
+      playerId: odId,
       gameType:  room.gameType,
       players: formatPlayersArray(room.players)
     });
@@ -262,7 +174,8 @@ io.on('connection', (socket) => {
       isUndercover: false,
       isMrWhite: false,
       word: null,
-      hasGivenHint: false
+      hasGivenHint: false,
+      submittedQuestions: []
     });
 
     socket.join(roomCode.toUpperCase());
@@ -273,8 +186,9 @@ io.on('connection', (socket) => {
 
     socket.emit('roomJoined', {
       roomCode:  room.code,
-      odId,
+      playerId: odId,
       gameType: room.gameType,
+      questionMode: room.questionMode,
       players: playersData
     });
 
@@ -292,11 +206,19 @@ io.on('connection', (socket) => {
 
     room.gameType = gameType;
     io.to(room.code).emit('gameTypeChanged', { gameType });
-    console.log(`Type de jeu changé en:  ${gameType}`);
+  });
+
+  // ==================== CHANGER LE MODE DE QUESTIONS ====================
+  socket.on('changeQuestionMode', (questionMode) => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || room.host !== socket.odId) return;
+
+    room.questionMode = questionMode;
+    io.to(room.code).emit('questionModeChanged', { questionMode });
   });
 
   // ==================== DÉMARRER LA PARTIE ====================
-  socket.on('startGame', () => {
+  socket.on('startGame', (data) => {
     const room = rooms.get(socket.roomCode);
 
     if (!room || room.host !== socket.odId) {
@@ -310,12 +232,79 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.gameStarted = true;
+    if (data && data.questionMode) {
+      room.questionMode = data.questionMode;
+    }
 
-    if (room.gameType === 'undercover') {
+    if (room.gameType === 'hotseat' && room.questionMode === 'custom') {
+      // Mode questions personnalisées :  collecter les questions
+      room.submittedPlayers.clear();
+      room.customQuestions = [];
+
+      io.to(room.code).emit('collectQuestions', {
+        totalPlayers: room.players.size
+      });
+    } else if (room.gameType === 'undercover') {
+      room.gameStarted = true;
       startUndercoverGame(room);
     } else {
+      room.gameStarted = true;
       startHotSeatGame(room);
+    }
+  });
+
+  // ==================== SOUMETTRE DES QUESTIONS ====================
+  socket.on('submitQuestions', ({ questions }) => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || room.gameType !== 'hotseat') return;
+
+    const player = room.players.get(socket.odId);
+    if (!player || room.submittedPlayers.has(socket.odId)) return;
+
+    // Nombre de questions custom soumises (0, 1 ou 2)
+    const customCount = questions ?  questions.length : 0;
+
+    // Ajouter les questions custom
+    if (questions && questions.length > 0) {
+      questions.forEach(q => {
+        if (q && q.trim()) {
+          room.customQuestions.push(q.trim());
+        }
+      });
+    }
+
+    // Compléter avec des questions aléatoires pour arriver à 2
+    const randomNeeded = 2 - customCount;
+    if (randomNeeded > 0) {
+      const randomQuestions = getRandomQuestions(randomNeeded, room.customQuestions);
+      room.customQuestions.push(...randomQuestions);
+    }
+
+    room.submittedPlayers.add(socket.odId);
+    player.submittedQuestions = questions || [];
+
+    // Notifier tout le monde
+    io.to(room.code).emit('playerSubmittedQuestions', {
+      playerName: player.name,
+      submittedCount: room.submittedPlayers.size,
+      totalPlayers: room.players.size,
+      customCount:  customCount
+    });
+
+    // Vérifier si tout le monde a soumis
+    if (room.submittedPlayers.size === room.players.size) {
+      // Mélanger les questions et démarrer
+      room.questions = shuffleArray(room.customQuestions);
+      room.gameStarted = true;
+
+      io.to(room.code).emit('allQuestionsCollected', {
+        totalQuestions: room.questions.length
+      });
+
+      // Petit délai pour le feedback
+      setTimeout(() => {
+        startHotSeatGame(room);
+      }, 1500);
     }
   });
 
@@ -323,29 +312,32 @@ io.on('connection', (socket) => {
   function startHotSeatGame(room) {
     room.currentQuestionIndex = 0;
     room.votes.clear();
+    room.results = [];
+
+    const totalQuestions = Math.min(room.questions.length, room.players.size * 2);
 
     io.to(room.code).emit('gameStarted', {
       gameType: 'hotseat',
       question: room.questions[0],
       questionNumber: 1,
-      totalQuestions: Math.min(10, room.questions.length),
+      totalQuestions:  totalQuestions,
       players: formatPlayersArray(room.players)
     });
   }
 
-  socket.on('vote', (votedodId) => {
+  socket.on('vote', (votedPlayerId) => {
     const room = rooms.get(socket.roomCode);
     if (!room || ! room.gameStarted) return;
 
     if (room.gameType === 'undercover') {
-      handleUndercoverVote(room, socket.odId, votedodId);
+      handleUndercoverVote(room, socket.odId, votedPlayerId);
     } else {
-      handleHotSeatVote(room, socket.odId, votedodId);
+      handleHotSeatVote(room, socket.odId, votedPlayerId);
     }
   });
 
-  function handleHotSeatVote(room, odId, votedodId) {
-    room.votes.set(odId, votedodId);
+  function handleHotSeatVote(room, odId, votedPlayerId) {
+    room.votes.set(odId, votedPlayerId);
 
     io.to(room.code).emit('voteReceived', {
       odId:  odId,
@@ -388,11 +380,13 @@ io.on('connection', (socket) => {
         details: voteDetails
       });
 
+      const totalQuestions = Math.min(room.questions.length, room.players.size * 2);
+
       io.to(room.code).emit('questionResults', {
         winners: winnerNames,
         votes: maxVotes,
         voteDetails,
-        isLastQuestion: room.currentQuestionIndex >= Math.min(9, room.questions.length - 1)
+        isLastQuestion: room.currentQuestionIndex >= totalQuestions - 1
       });
     }
   }
@@ -405,7 +399,9 @@ io.on('connection', (socket) => {
       room.currentQuestionIndex++;
       room.votes.clear();
 
-      if (room.currentQuestionIndex >= Math.min(10, room.questions.length)) {
+      const totalQuestions = Math.min(room.questions.length, room.players.size * 2);
+
+      if (room.currentQuestionIndex >= totalQuestions) {
         io.to(room.code).emit('gameEnded', { results: room.results });
         return;
       }
@@ -413,7 +409,7 @@ io.on('connection', (socket) => {
       io.to(room.code).emit('newQuestion', {
         question: room.questions[room.currentQuestionIndex],
         questionNumber: room.currentQuestionIndex + 1,
-        totalQuestions: Math.min(10, room.questions.length),
+        totalQuestions: totalQuestions,
         players: formatPlayersArray(room.players)
       });
     }
@@ -425,14 +421,11 @@ io.on('connection', (socket) => {
     const shuffledIds = shuffleArray(playerIds);
     const undercoverCount = getUndercoverCount(playerIds.length);
 
-    // Sélectionner une paire de mots aléatoire
     const pairIndex = Math.floor(Math.random() * wordPairs.length);
     room.currentWordPair = wordPairs[pairIndex];
 
-    // Assigner les rôles
     const undercoverIds = shuffledIds.slice(0, undercoverCount);
 
-    // Option:  Mr. White pour 10+ joueurs
     let mrWhiteId = null;
     if (playerIds.length >= 10) {
       mrWhiteId = shuffledIds[undercoverCount];
@@ -464,33 +457,31 @@ io.on('connection', (socket) => {
     room.votes.clear();
     room.eliminatedPlayers = [];
 
-    // Envoyer à chaque joueur son mot (en privé)
     room.players.forEach((player, odId) => {
       const playerSocket = io.sockets.sockets.get(player.socketId);
       if (playerSocket) {
         playerSocket.emit('gameStarted', {
           gameType: 'undercover',
           yourWord: player.word,
-          yourRole: player.isMrWhite ?  'mrwhite' : (player.isUndercover ? 'undercover' :  'civil'),
+          yourRole: player.isMrWhite ?  'mrwhite' : (player.isUndercover ? 'undercover' : 'civil'),
           undercoverCount: undercoverCount,
           hasMrWhite:  mrWhiteId !== null,
           players: formatPlayersArray(room.players),
-          currentodId: room.playerOrder[0],
+          currentPlayerId: room.playerOrder[0],
           roundNumber: 1
         });
       }
     });
 
-    console.log(`Undercover démarré:  ${undercoverCount} imposteurs, Mr.White: ${mrWhiteId !== null}`);
+    console.log(`Undercover démarré:  ${undercoverCount} imposteurs, Mr. White: ${mrWhiteId !== null}`);
   }
 
-  // Joueur donne un indice
-  socket.on('giveHint', (hint) => {
+  socket.on('hintDone', () => {
     const room = rooms.get(socket.roomCode);
     if (!room || room.gameType !== 'undercover') return;
 
-    const currentodId = room.playerOrder[room.currentPlayerIndex];
-    if (socket.odId !== currentodId) {
+    const currentPlayerId = room.playerOrder[room.currentPlayerIndex];
+    if (socket.odId !== currentPlayerId) {
       socket.emit('error', { message: 'Ce n\'est pas ton tour !' });
       return;
     }
@@ -499,59 +490,50 @@ io.on('connection', (socket) => {
     if (!player || !player.isAlive || player.hasGivenHint) return;
 
     player.hasGivenHint = true;
-    room.hints.push({
-      odId: socket.odId,
-      playerName: player.name,
-      hint:  hint,
-      round: room.roundNumber
-    });
 
-    // Passer au joueur suivant
     room.currentPlayerIndex++;
 
-    // Trouver le prochain joueur vivant
     while (room.currentPlayerIndex < room.playerOrder.length) {
-      const nextodId = room.playerOrder[room.currentPlayerIndex];
-      const nextPlayer = room.players.get(nextodId);
+      const nextPlayerId = room.playerOrder[room.currentPlayerIndex];
+      const nextPlayer = room.players.get(nextPlayerId);
       if (nextPlayer && nextPlayer.isAlive && !nextPlayer.hasGivenHint) {
         break;
       }
       room.currentPlayerIndex++;
     }
 
-    // Si tout le monde a donné son indice, passer au vote
     const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
+    const hintsCount = alivePlayers.filter(p => p.hasGivenHint).length;
     const allHintsGiven = alivePlayers.every(p => p.hasGivenHint);
 
     if (allHintsGiven || room.currentPlayerIndex >= room.playerOrder.length) {
       io.to(room.code).emit('undercoverVotePhase', {
-        hints: room.hints.filter(h => h.round === room.roundNumber),
-        players: alivePlayers.map(formatPlayerData),
-        roundNumber:  room.roundNumber
+        players: alivePlayers.map(p => ({ id: p.id, name: p.name })),
+        roundNumber: room.roundNumber
       });
     } else {
       io.to(room.code).emit('hintGiven', {
-        odId: socket.odId,
+        playerId: socket.odId,
         playerName: player.name,
-        hint:  hint,
-        nextodId: room.playerOrder[room.currentPlayerIndex],
-        hints: room.hints.filter(h => h.round === room.roundNumber)
+        nextPlayerId: room.playerOrder[room.currentPlayerIndex],
+        hintsCount: hintsCount,
+        totalPlayers: alivePlayers.length
       });
     }
   });
 
-  function handleUndercoverVote(room, odId, votedodId) {
+  function handleUndercoverVote(room, odId, votedPlayerId) {
     const voter = room.players.get(odId);
     if (!voter || !voter.isAlive) return;
 
-    room.votes.set(odId, votedodId);
+    room.votes.set(odId, votedPlayerId);
 
     const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
 
     io.to(room.code).emit('undercoverVoteReceived', {
       odId: odId,
       totalVotes: room.votes.size,
-      totalPlayers: alivePlayers.length
+      totalPlayers:  alivePlayers.length
     });
 
     if (room.votes.size === alivePlayers.length) {
@@ -710,7 +692,7 @@ io.on('connection', (socket) => {
 
     io.to(room.code).emit('undercoverNewRound', {
       roundNumber: room.roundNumber,
-      currentodId: room.playerOrder[0],
+      currentPlayerId: room.playerOrder[0],
       players: Array.from(room.players.values())
         .filter(p => p.isAlive)
         .map(p => ({ id: p.id, name: p.name }))
@@ -725,6 +707,8 @@ io.on('connection', (socket) => {
     room.gameStarted = false;
     room.currentQuestionIndex = 0;
     room.questions = shuffleArray(hotSeatQuestions);
+    room.customQuestions = [];
+    room.submittedPlayers.clear();
     room.votes.clear();
     room.results = [];
     room.hints = [];
@@ -738,6 +722,7 @@ io.on('connection', (socket) => {
       player.isMrWhite = false;
       player.word = null;
       player.hasGivenHint = false;
+      player.submittedQuestions = [];
     });
 
     io.to(room.code).emit('gameRestarted', {
@@ -756,7 +741,7 @@ io.on('connection', (socket) => {
         player.isAlive = false;
 
         io.to(room.code).emit('playerDisconnected', {
-          playerName:  player.name,
+          playerName: player.name,
           players: Array.from(room.players.values())
             .filter(p => p.isAlive)
             .map(p => ({ id: p.id, name: p.name }))
@@ -764,6 +749,37 @@ io.on('connection', (socket) => {
 
         if (room.playerOrder[room.currentPlayerIndex] === socket.odId) {
           room.currentPlayerIndex++;
+          // Trouver le prochain joueur vivant
+          while (room.currentPlayerIndex < room.playerOrder.length) {
+            const nextPlayerId = room.playerOrder[room.currentPlayerIndex];
+            const nextPlayer = room.players.get(nextPlayerId);
+            if (nextPlayer && nextPlayer.isAlive) {
+              io.to(room.code).emit('hintGiven', {
+                playerId:  socket.odId,
+                playerName:  player.name,
+                nextPlayerId:  nextPlayerId,
+                hintsCount:  Array.from(room.players.values()).filter(p => p.isAlive && p.hasGivenHint).length,
+                totalPlayers: Array.from(room.players.values()).filter(p => p.isAlive).length
+              });
+              break;
+            }
+            room.currentPlayerIndex++;
+          }
+        }
+
+        // Vérifier la victoire après déconnexion
+        const victory = checkUndercoverVictory(room);
+        if (victory.gameOver) {
+          io.to(room.code).emit('undercoverGameEnd', {
+            winner:  victory.winner,
+            message: victory.message,
+            wordPair: room.currentWordPair,
+            allPlayers: Array.from(room.players.values()).map(p => ({
+              name:  p.name,
+              role: p.isMrWhite ? 'Mr. White' : (p.isUndercover ? 'Undercover' : 'Civil'),
+              word: p.word
+            }))
+          });
         }
       } else {
         room.players.delete(socket.odId);
@@ -774,7 +790,7 @@ io.on('connection', (socket) => {
         console.log(`Partie ${socket.roomCode} supprimée`);
       } else {
         if (room.host === socket.odId) {
-          const newHost = Array.from(room.players.values()).find(p => p.isAlive);
+          const newHost = Array.from(room.players.values()).find(p => p.isAlive !== false);
           if (newHost) {
             room.host = newHost.id;
             newHost.isHost = true;
@@ -791,6 +807,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// ==================== DÉMARRAGE DU SERVEUR ====================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🎉 Serveur lancé sur http://localhost:${PORT}`);

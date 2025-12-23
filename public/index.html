@@ -37,6 +37,14 @@
               <span class="game-desc">Trouvez l'imposteur !</span>
             </div>
           </label>
+          <label class="game-option" data-game="roulette">
+            <input type="radio" name="game" value="roulette">
+            <div class="game-card">
+              <span class="game-icon">🎰</span>
+              <span class="game-name">Roulette</span>
+              <span class="game-desc">Duel de boisson !</span>
+            </div>
+          </label>
         </div>
       </div>
       
@@ -59,6 +67,138 @@
       </div>
     </div>
 
+    <!-- ==================== ROULETTE - CHOIX MODE ==================== -->
+    <div id="roulette-mode-screen" class="screen">
+      <h2>🎰 Roulette</h2>
+      <p class="subtitle">Comment voulez-vous jouer ? </p>
+      
+      <div class="roulette-mode-options">
+        <button id="roulette-local-btn" class="btn btn-mode">
+          <span class="mode-icon">👥</span>
+          <span class="mode-title">Face à face</span>
+          <span class="mode-subtitle">Sur le même téléphone</span>
+        </button>
+        <button id="roulette-online-btn" class="btn btn-mode">
+          <span class="mode-icon">🌐</span>
+          <span class="mode-title">À distance</span>
+          <span class="mode-subtitle">Chacun son téléphone</span>
+        </button>
+      </div>
+      
+      <button id="roulette-back-btn" class="btn btn-secondary">
+        ← Retour
+      </button>
+    </div>
+
+    <!-- ==================== ROULETTE - MODE LOCAL (SAISIE NOMS) ==================== -->
+    <div id="roulette-local-setup-screen" class="screen">
+      <h2>🎰 Roulette - Face à face</h2>
+      <p class="subtitle">Entrez les noms des deux joueurs</p>
+      
+      <div class="roulette-players-form">
+        <div class="form-group">
+          <label>Joueur 1 :</label>
+          <input type="text" id="roulette-player1-name" placeholder="Nom du joueur 1" maxlength="20">
+        </div>
+        <div class="vs-divider">VS</div>
+        <div class="form-group">
+          <label>Joueur 2 :</label>
+          <input type="text" id="roulette-player2-name" placeholder="Nom du joueur 2" maxlength="20">
+        </div>
+      </div>
+      
+      <button id="roulette-local-start-btn" class="btn btn-primary">
+        🎰 Commencer ! 
+      </button>
+      
+      <button id="roulette-local-back-btn" class="btn btn-secondary">
+        ← Retour
+      </button>
+    </div>
+
+    <!-- ==================== ROULETTE - MODE ONLINE (ATTENTE) ==================== -->
+    <div id="roulette-online-lobby-screen" class="screen">
+      <h2>🎰 Roulette - À distance</h2>
+      
+      <div class="room-code-display">
+        Code :  <span id="roulette-room-code"></span>
+        <button id="roulette-copy-code-btn" class="btn-small">📋</button>
+      </div>
+      
+      <div class="roulette-players-status">
+        <div class="roulette-player-slot" id="roulette-slot-1">
+          <span class="slot-icon">👤</span>
+          <span class="slot-name" id="roulette-slot-1-name">En attente...</span>
+        </div>
+        <div class="vs-divider">VS</div>
+        <div class="roulette-player-slot" id="roulette-slot-2">
+          <span class="slot-icon">👤</span>
+          <span class="slot-name" id="roulette-slot-2-name">En attente...</span>
+        </div>
+      </div>
+      
+      <button id="roulette-online-start-btn" class="btn btn-primary hidden">
+        🎰 Commencer !
+      </button>
+      
+      <p id="roulette-waiting-message" class="waiting-text">
+        En attente d'un adversaire...
+      </p>
+      
+      <button id="roulette-online-back-btn" class="btn btn-secondary">
+        ← Retour
+      </button>
+    </div>
+
+    <!-- ==================== ROULETTE - JEU ==================== -->
+    <!-- ==================== ROULETTE - JEU ==================== -->
+    <div id="roulette-game-screen" class="screen">
+      <div class="roulette-header">
+        <div class="roulette-player roulette-player-1">
+          <span class="roulette-player-icon">🍺</span>
+          <span class="roulette-player-name" id="roulette-p1-name">Joueur 1</span>
+          <span class="roulette-player-score" id="roulette-p1-score">0 verre</span>
+        </div>
+        <div class="roulette-vs">VS</div>
+        <div class="roulette-player roulette-player-2">
+          <span class="roulette-player-icon">🍺</span>
+          <span class="roulette-player-name" id="roulette-p2-name">Joueur 2</span>
+          <span class="roulette-player-score" id="roulette-p2-score">0 verre</span>
+        </div>
+      </div>
+      
+      <div class="roulette-wheel-container">
+        <div class="roulette-wheel" id="roulette-wheel">
+          <div class="wheel-center">🎰</div>
+        </div>
+        <div class="roulette-pointer">▼</div>
+      </div>
+      
+      <!-- Légende des couleurs -->
+      <div class="wheel-legend-container">
+        <h4>🎨 Légende</h4>
+        <div class="wheel-legend" id="wheel-legend"></div>
+      </div>
+      
+      <div class="roulette-result hidden" id="roulette-result">
+        <div class="result-color" id="roulette-result-color"></div>
+        <div class="result-text" id="roulette-result-text"></div>
+      </div>
+      
+      <button id="spin-wheel-btn" class="btn btn-primary btn-spin">
+        🎰 Tourner la roue ! 
+      </button>
+      
+      <div class="roulette-actions hidden" id="roulette-actions">
+        <button id="spin-again-btn" class="btn btn-primary">
+          🔄 Rejouer
+        </button>
+        <button id="roulette-quit-btn" class="btn btn-secondary">
+          🏠 Quitter
+        </button>
+      </div>
+    </div>
+
     <!-- ==================== SALON D'ATTENTE ==================== -->
     <div id="lobby-screen" class="screen">
       <h2>🎊 Salon d'attente</h2>
@@ -69,7 +209,7 @@
       </div>
       
       <div class="room-code-display">
-        Code :  <span id="display-room-code"></span>
+        Code : <span id="display-room-code"></span>
         <button id="copy-code-btn" class="btn-small">📋</button>
       </div>
       
@@ -245,11 +385,11 @@
       </div>
       
       <div id="your-word-reminder-uc" class="word-reminder">
-        🔒 Ton mot :  <span id="reminder-word"></span>
+        🔒 Ton mot : <span id="reminder-word"></span>
       </div>
       
       <div class="current-turn">
-        <p>C'est au tour de :</p>
+        <p>C'est au tour de : </p>
         <div id="current-player-name" class="current-player-name">...</div>
       </div>
       
@@ -277,7 +417,7 @@
 
     <!-- ==================== UNDERCOVER - VOTE ==================== -->
     <div id="undercover-vote-screen" class="screen">
-      <h2>🗳️ Qui est l'imposteur ? </h2>
+      <h2>🗳️ Qui est l'imposteur ?</h2>
       <p class="vote-instruction">Votez pour la personne que vous soupçonnez !</p>
       
       <div class="vote-status">

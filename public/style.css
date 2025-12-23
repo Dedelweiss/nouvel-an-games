@@ -7,7 +7,7 @@
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background:  linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  min-height:  100vh;
+  min-height: 100vh;
   color: #fff;
 }
 
@@ -19,7 +19,7 @@ body {
 }
 
 .screen {
-  display:  none;
+  display: none;
   animation: fadeIn 0.3s ease;
 }
 
@@ -29,7 +29,7 @@ body {
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
-  to { opacity:  1; transform:  translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .logo {
@@ -51,7 +51,7 @@ h1 {
   background: linear-gradient(45deg, #f39c12, #e74c3c, #9b59b6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip:  text;
+  background-clip: text;
 }
 
 h2 {
@@ -67,11 +67,18 @@ h3 {
 .subtitle {
   text-align: center;
   color: #888;
-  margin-bottom:  30px;
+  margin-bottom: 30px;
 }
 
 .form-group {
   margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #f39c12;
+  font-weight:  bold;
 }
 
 input[type="text"] {
@@ -109,11 +116,13 @@ input[type="text"]::placeholder {
 
 .game-options {
   display:  flex;
-  gap: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .game-option {
   flex: 1;
+  min-width: 100px;
   cursor: pointer;
 }
 
@@ -125,12 +134,12 @@ input[type="text"]::placeholder {
   background:  rgba(255, 255, 255, 0.05);
   border: 2px solid #333;
   border-radius: 15px;
-  padding: 20px;
+  padding: 15px 10px;
   text-align: center;
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .game-option.selected .game-card,
@@ -140,16 +149,16 @@ input[type="text"]::placeholder {
 }
 
 .game-icon {
-  font-size: 2.5rem;
+  font-size: 2rem;
 }
 
 .game-name {
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
 }
 
 .game-desc {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: #888;
 }
 
@@ -190,8 +199,8 @@ input[type="text"]::placeholder {
   text-align: center;
   transition: all 0.3s ease;
   display: flex;
-  flex-direction: column;
-  gap:  5px;
+  flex-direction:  column;
+  gap: 5px;
 }
 
 .mode-option.selected .mode-card,
@@ -201,7 +210,7 @@ input[type="text"]::placeholder {
 }
 
 .mode-icon {
-  font-size:  1.8rem;
+  font-size: 1.8rem;
 }
 
 .mode-name {
@@ -230,7 +239,7 @@ input[type="text"]::placeholder {
   display: block;
   margin-bottom:  8px;
   color: #f39c12;
-  font-weight: bold;
+  font-weight:  bold;
 }
 
 .question-prefix {
@@ -296,7 +305,7 @@ input[type="text"]::placeholder {
   color: #2ecc71;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap:  10px;
 }
 
 .question-detail {
@@ -319,7 +328,7 @@ input[type="text"]::placeholder {
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:  all 0.3s ease;
   font-weight: 600;
 }
 
@@ -334,8 +343,8 @@ input[type="text"]::placeholder {
 }
 
 .btn-primary:disabled {
-  opacity: 0.5;
-  cursor:  not-allowed;
+  opacity:  0.5;
+  cursor: not-allowed;
   transform: none;
 }
 
@@ -352,7 +361,7 @@ input[type="text"]::placeholder {
 .btn-small {
   padding:  8px 12px;
   font-size: 0.9rem;
-  border:  none;
+  border: none;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
@@ -383,8 +392,8 @@ input[type="text"]::placeholder {
   font-size: 1.5rem;
   padding: 20px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius:  12px;
-  margin-bottom:  20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
 }
 
 .room-code-display span {
@@ -422,7 +431,7 @@ input[type="text"]::placeholder {
 }
 
 .players-list li.host::after {
-  content: '👑';
+  content:  '👑';
   margin-left: auto;
 }
 
@@ -432,7 +441,7 @@ input[type="text"]::placeholder {
 }
 
 .game-selector-lobby {
-  display: flex;
+  display:  flex;
   gap: 10px;
   margin-bottom: 15px;
   justify-content: center;
@@ -561,11 +570,11 @@ input[type="text"]::placeholder {
 #voted-message,
 #uc-voted-message {
   text-align: center;
-  color:  #2ecc71;
+  color: #2ecc71;
   font-size: 1.2rem;
   padding: 20px;
   background: rgba(46, 204, 113, 0.1);
-  border-radius:  12px;
+  border-radius: 12px;
 }
 
 /* ==================== RESULTS ==================== */
@@ -657,7 +666,7 @@ input[type="text"]::placeholder {
 
 .role-card.mrwhite {
   background: linear-gradient(135deg, rgba(236, 240, 241, 0.3), rgba(189, 195, 199, 0.3));
-  border-color:  rgba(236, 240, 241, 0.5);
+  border-color: rgba(236, 240, 241, 0.5);
 }
 
 .role-icon {
@@ -702,7 +711,7 @@ input[type="text"]::placeholder {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
+  padding:  15px;
   background: rgba(255, 255, 255, 0.05);
   border-radius:  12px;
   margin-bottom:  20px;
@@ -759,8 +768,8 @@ input[type="text"]::placeholder {
 /* ==================== UNDERCOVER - HINT SECTION ==================== */
 .hint-action {
   background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.2));
-  border: 2px solid rgba(46, 204, 113, 0.5);
-  border-radius: 15px;
+  border:  2px solid rgba(46, 204, 113, 0.5);
+  border-radius:  15px;
   padding: 25px;
   text-align: center;
   margin:  20px 0;
@@ -772,7 +781,7 @@ input[type="text"]::placeholder {
 }
 
 .waiting-hint {
-  background:  rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 15px;
   padding: 25px;
   text-align: center;
@@ -866,7 +875,7 @@ input[type="text"]::placeholder {
   color: #ecf0f1;
 }
 
-/* ==================== MR. WHITE GUESS ==================== */
+/* ==================== MR.WHITE GUESS ==================== */
 .mrwhite-card {
   background:  linear-gradient(135deg, rgba(236, 240, 241, 0.2), rgba(189, 195, 199, 0.2));
   border: 2px solid rgba(236, 240, 241, 0.5);
@@ -913,8 +922,8 @@ input[type="text"]::placeholder {
 }
 
 #uc-end-message {
-  font-size: 1.2rem;
-  color: #f39c12;
+  font-size:  1.2rem;
+  color:  #f39c12;
   margin-bottom:  25px;
 }
 
@@ -976,7 +985,7 @@ input[type="text"]::placeholder {
 }
 
 .players-roles ul {
-  list-style: none;
+  list-style:  none;
   max-height: 200px;
   overflow-y: auto;
 }
@@ -986,7 +995,7 @@ input[type="text"]::placeholder {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   margin-bottom: 8px;
-  display: flex;
+  display:  flex;
   justify-content: space-between;
   align-items: center;
 }
@@ -1013,6 +1022,320 @@ input[type="text"]::placeholder {
   color: #ecf0f1;
 }
 
+/* ==================== ROULETTE ==================== */
+
+/* Mode Selection */
+.roulette-mode-options {
+  display:  flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.btn-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 25px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #333;
+  border-radius: 15px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.btn-mode:hover {
+  border-color: #f39c12;
+  background: rgba(243, 156, 18, 0.1);
+  transform: translateY(-3px);
+}
+
+.btn-mode .mode-icon {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.btn-mode .mode-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.btn-mode .mode-subtitle {
+  font-size: 0.9rem;
+  color: #888;
+}
+
+/* Players Form */
+.roulette-players-form {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.roulette-players-form label {
+  display:  block;
+  margin-bottom: 8px;
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.vs-divider {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #e74c3c;
+  margin: 15px 0;
+}
+
+/* Online Lobby */
+.roulette-players-status {
+  background:  rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding:  25px;
+  margin-bottom:  25px;
+}
+
+.roulette-player-slot {
+  display:  flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.roulette-player-slot.ready {
+  background:  rgba(46, 204, 113, 0.2);
+  border:  1px solid rgba(46, 204, 113, 0.5);
+}
+
+.slot-icon {
+  font-size: 2rem;
+}
+
+.slot-name {
+  font-size: 1.1rem;
+  color: #888;
+}
+
+.roulette-player-slot.ready .slot-name {
+  color: #2ecc71;
+  font-weight: bold;
+}
+
+/* Roulette Game Screen */
+.roulette-header {
+  display:  flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+}
+
+.roulette-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex:  1;
+}
+
+.roulette-player-icon {
+  font-size: 2rem;
+  margin-bottom: 5px;
+}
+
+.roulette-player-name {
+  font-weight: bold;
+  font-size: 1rem;
+  margin-bottom: 3px;
+}
+
+.roulette-player-score {
+  font-size: 0.85rem;
+  color: #f39c12;
+}
+
+.roulette-vs {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #e74c3c;
+  padding: 0 15px;
+}
+
+/* Wheel */
+.roulette-wheel-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items:  center;
+  margin:  30px 0;
+}
+
+.roulette-wheel {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #e74c3c 0deg 45deg,
+    #f39c12 45deg 90deg,
+    #2ecc71 90deg 135deg,
+    #3498db 135deg 180deg,
+    #9b59b6 180deg 225deg,
+    #1abc9c 225deg 270deg,
+    #e67e22 270deg 315deg,
+    #34495e 315deg 360deg
+  );
+  border: 8px solid #fff;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.3);
+  transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.roulette-wheel.spinning {
+  transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+}
+
+.wheel-center {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-radius: 50%;
+  border: 4px solid #f39c12;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size:  1.8rem;
+  box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+}
+
+.roulette-pointer {
+  position:  absolute;
+  top: -15px;
+  font-size: 2rem;
+  color: #f39c12;
+  text-shadow: 0 0 10px rgba(243, 156, 18, 0.8);
+  z-index: 10;
+}
+
+/* Wheel Legend */
+.wheel-legend-container {
+  background:  rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.wheel-legend-container h4 {
+  text-align: center;
+  color: #888;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.wheel-legend {
+  display:   grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items:  center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.legend-color {
+  width:  16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.legend-name {
+  white-space: nowrap;
+  overflow:  hidden;
+  text-overflow: ellipsis;
+}
+
+/* Result with color indicator */
+.result-color {
+  display: inline-block;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 1rem;
+  margin-bottom: 15px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+
+/* Result */
+.roulette-result {
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.2), rgba(231, 76, 60, 0.2));
+  border:  2px solid rgba(243, 156, 18, 0.5);
+  border-radius: 15px;
+  padding:  25px;
+  margin-bottom: 20px;
+  text-align: center;
+  animation: resultAppear 0.5s ease;
+}
+
+@keyframes resultAppear {
+  from {
+    opacity: 0;
+    transform:  scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.result-text {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1.5;
+}
+
+.result-text .highlight {
+  color:  #f39c12;
+}
+
+/* Buttons */
+.btn-spin {
+  font-size: 1.3rem;
+  padding: 18px 40px;
+  width: 100%;
+}
+
+.btn-spin:disabled {
+  opacity:  0.5;
+  cursor: not-allowed;
+}
+
+.roulette-actions {
+  display:  flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.roulette-actions .btn {
+  flex: 1;
+}
+
 /* ==================== TOAST ==================== */
 .toast {
   position: fixed;
@@ -1021,7 +1344,7 @@ input[type="text"]::placeholder {
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.9);
   color: #fff;
-  padding:  15px 30px;
+  padding: 15px 30px;
   border-radius: 10px;
   animation: slideUp 0.3s ease;
   z-index: 1000;
@@ -1072,12 +1395,19 @@ input[type="text"]::placeholder {
 }
 
 /* ==================== RESPONSIVE ==================== */
-@media (max-width: 480px) {
+@media (max-width:  480px) {
   h1 {
     font-size: 1.8rem;
   }
 
-  .game-options,
+  .game-options {
+    flex-direction: column;
+  }
+  
+  .game-option {
+    min-width: 100%;
+  }
+
   .question-mode-selector {
     flex-direction: column;
   }
@@ -1087,7 +1417,7 @@ input[type="text"]::placeholder {
   }
 
   .players-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns:  repeat(2, 1fr);
   }
 
   .word-pair {
@@ -1121,5 +1451,78 @@ input[type="text"]::placeholder {
 
   .game-option-small {
     text-align: center;
+  }
+
+  /* Roulette responsive */
+  .roulette-wheel {
+    width: 240px;
+    height: 240px;
+  }
+
+  .wheel-center {
+    width: 50px;
+    height:  50px;
+    font-size: 1.5rem;
+  }
+
+  .roulette-header {
+    flex-direction: row;
+    padding: 10px;
+  }
+
+  .roulette-player-name {
+    font-size: 0.85rem;
+  }
+
+  .roulette-player-icon {
+    font-size: 1.5rem;
+  }
+
+  .result-text {
+    font-size: 1.1rem;
+  }
+
+  .roulette-actions {
+    flex-direction:  column;
+  }
+
+  .wheel-legend {
+    grid-template-columns:   repeat(2, 1fr);
+  }
+  
+  .legend-item {
+    font-size: 0.7rem;
+  }
+  
+  .legend-color {
+    width: 14px;
+    height:   14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .container {
+    padding:  10px;
+  }
+
+  .roulette-wheel {
+    width: 200px;
+    height: 200px;
+  }
+
+  .wheel-center {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .btn {
+    padding: 12px 20px;
+    font-size: 1rem;
+  }
+
+  .btn-spin {
+    font-size: 1.1rem;
+    padding: 15px 30px;
   }
 }

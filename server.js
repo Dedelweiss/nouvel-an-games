@@ -255,8 +255,14 @@ io.on('connection', (socket) => {
     }
 
     if (room.players.size === 0) {
-      rooms.delete(socket.roomCode);
-      console.log(`Partie ${socket.roomCode} supprimée`);
+      console.log(`Salle ${socket.roomCode} vide. Suppression programmée dans 5 min...`);
+      
+      room.deleteTimeout = setTimeout(() => {
+        if (rooms.has(socket.roomCode)) {
+          rooms.delete(socket.roomCode);
+          console.log(`🗑️ Salle ${socket.roomCode} supprimée définitivement.`);
+        }
+      }, 5 * 60 * 1000);
     } else {
       // Transfert d'hôte si nécessaire
       if (room.host === socket.odId) {

@@ -184,17 +184,24 @@ document.querySelectorAll('.mode-option').forEach(option => {
 });
 
 document.getElementById('submit-questions-btn')?.addEventListener('click', () => {
-  const q1 = document.getElementById('custom-question-1').value.trim();
-  const q2 = document.getElementById('custom-question-2').value.trim();
-  const q3 = document.getElementById('custom-question-3').value.trim();
+  const inputs = document.querySelectorAll('.custom-q-input');
   const questions = [];
-  if (q1) questions.push(q1);
-  if (q2) questions.push(q2);
-  if (q3) questions.push(q3);
+
+  inputs.forEach(input => {
+    const val = input.value.trim();
+    if (val) {
+        // Ajoute le préfixe si l'utilisateur ne l'a pas mis (optionnel mais sympa)
+        // const fullQ = val.toLowerCase().startsWith('qui') ? val : `Qui est le plus susceptible de ${val}`;
+        questions.push(val);
+    }
+  });
   
   socket.emit('submitQuestions', { questions });
-  document.getElementById('submit-questions-btn').disabled = true;
-  document.getElementById('submit-questions-btn').textContent = '✅ Envoyé';
+  
+  // UI Feedback
+  const btn = document.getElementById('submit-questions-btn');
+  btn.disabled = true;
+  btn.textContent = '✅ Questions envoyées !';
 });
 
 document.getElementById('next-question-btn').addEventListener('click', () => {
@@ -692,21 +699,31 @@ socket.on('roulettePlayerLeft', () => {
   setTimeout(() => location.reload(), 2000);
 });
 
-// --- Restart ---
 socket.on('gameRestarted', ({ players }) => {
   state.players = players;
   state.hasVoted = false;
   state.hasSubmittedQuestions = false;
   
-  // Reset forms UI
+  // --- CORRECTION 1 : Réinitialiser le formulaire de questions ---
   const submitBtn = document.getElementById('submit-questions-btn');
   if(submitBtn) {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Envoyer';
+    submitBtn.textContent = '📤 Valider mes 3 questions';
   }
   
+  // Vider les champs de texte
+  document.querySelectorAll('.custom-q-input').forEach(input => input.value = '');
+
+  // --- CORRECTION 2 : Vider la liste des joueurs qui ont validé ---
+  const list = document.getElementById('submitted-players-list');
+  if (list) list.innerHTML = ''; // <--- C'est la ligne qui manquait !
+  
+  document.getElementById('questions-submitted-count').textContent = '0';
+
+  // Mise à jour classique
   updatePlayersList();
   showScreen('lobby');
+  showToast("🔄 Une nouvelle partie va commencer !", "success");
 });
 
 socket.on('error', ({ message }) => showToast(message, 'error'));

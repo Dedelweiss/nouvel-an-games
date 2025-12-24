@@ -44,6 +44,8 @@ io.on('connection', (socket) => {
     undercoverGame.initGame(room);
     rouletteGame.initGame(room);
 
+    console.log(`Creating room with code: ${roomCode} and game type: ${gameType}, nom du joueur: ${playerName}`);
+
     const player = createPlayer(playerName, socket.id, true);
     room.host = player.id;
     room.players.set(player.id, player);

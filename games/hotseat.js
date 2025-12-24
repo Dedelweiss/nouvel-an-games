@@ -17,23 +17,24 @@ function initGame(room) {
   room.results = [];
 }
 
+// --- NOUVELLE FONCTION UTILITAIRE POUR STABILISER LE COMPTEUR ---
+function calculateTotal(room) {
+  if (room.questionMode === 'custom') {
+    return room.questions.length;
+  }
+  
+  return Math.min(room.questions.length, room.players.size * 5);
+}
+// ---------------------------------------------------------------
+
 function submitQuestions(io, socket, room, questions) {
   const player = room.players.get(socket.odId);
   if (!player || room.submittedPlayers.has(socket.odId)) return;
 
-  const customCount = questions ? questions.length : 0;
+  const validQuestions = questions ? questions.filter(q => q && q.trim().length > 0) : [];
   
-  if (questions && questions.length > 0) {
-    questions.forEach(q => {
-      if (q && q.trim()) room.customQuestions.push(q.trim());
-    });
-  }
-
-  // Compléter avec des questions aléatoires
-  const randomNeeded = 2 - customCount;
-  if (randomNeeded > 0) {
-    const randomQs = getRandomQuestions(randomNeeded, room.customQuestions);
-    room.customQuestions.push(...randomQs);
+  if (validQuestions.length > 0) {
+    room.customQuestions.push(...validQuestions);
   }
 
   room.submittedPlayers.add(socket.odId);
@@ -42,11 +43,15 @@ function submitQuestions(io, socket, room, questions) {
   io.to(room.code).emit('playerSubmittedQuestions', {
     playerName: player.name,
     submittedCount: room.submittedPlayers.size,
-    totalPlayers: room.players.size,
-    customCount: customCount
+    totalPlayers: room.players.size
   });
 
   if (room.submittedPlayers.size === room.players.size) {
+    // Si aucune question n'a été proposée au total, on met des questions par défaut
+    if (room.customQuestions.length === 0) {
+        room.customQuestions = getRandomQuestions(room.players.size * 3);
+    }
+    
     room.questions = shuffleArray(room.customQuestions);
     room.gameStarted = true;
     io.to(room.code).emit('allQuestionsCollected', { totalQuestions: room.questions.length });
@@ -62,13 +67,12 @@ function startGame(io, room) {
   room.votes.clear();
   room.results = [];
 
-  // Si c'est le mode custom et que le jeu démarre via submitQuestions, c'est déjà géré.
-  // Sinon (mode par défaut) :
   if (room.questionMode === 'default') {
       room.questions = shuffleArray(hotSeatQuestions);
   }
 
-  const totalQuestions = Math.min(room.questions.length, room.players.size * 2);
+  // Utilisation du calcul unifié
+  const totalQuestions = calculateTotal(room);
 
   io.to(room.code).emit('gameStarted', {
     gameType: 'hotseat',
@@ -127,7 +131,8 @@ function processResults(io, room) {
     details: voteDetails
   });
 
-  const totalQuestions = Math.min(room.questions.length, room.players.size * 3);
+  // Utilisation du calcul unifié (IMPORTANT pour la condition de fin)
+  const totalQuestions = calculateTotal(room);
 
   io.to(room.code).emit('questionResults', {
     winners: winnerNames,
@@ -141,7 +146,8 @@ function nextQuestion(io, room) {
   room.currentQuestionIndex++;
   room.votes.clear();
 
-  const totalQuestions = Math.min(room.questions.length, room.players.size * 3);
+  // Utilisation du calcul unifié
+  const totalQuestions = calculateTotal(room);
 
   if (room.currentQuestionIndex >= totalQuestions) {
     io.to(room.code).emit('gameEnded', { results: room.results });

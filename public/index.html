@@ -235,7 +235,7 @@
             <div class="mode-card">
               <span class="mode-icon">✏️</span>
               <span class="mode-name">Questions personnalisées</span>
-              <span class="mode-desc">Chaque joueur propose 0 à 2 questions</span>
+              <span class="mode-desc">Chaque joueur propose 0 à 3 questions</span>
             </div>
           </label>
         </div>
@@ -275,7 +275,7 @@
     <!-- ==================== ÉCRAN SOUMISSION QUESTIONS ==================== -->
     <div id="questions-submit-screen" class="screen">
       <h2>✏️ Propose tes questions !</h2>
-      <p class="subtitle">Ajoute 0, 1 ou 2 questions personnalisées.<br>Le reste sera complété par des questions aléatoires.</p>
+      <p class="subtitle">Chaque joueur propose 3 questions.<br>Laisse vide si tu manques d'inspiration.</p>
       
       <div class="word-reminder">
         ⏳ <span id="questions-submitted-count">0</span>/<span id="questions-total-players">0</span> joueurs ont validé
@@ -283,32 +283,26 @@
       
       <div class="questions-form">
         <div class="question-input-group">
-          <label>Question 1 (optionnelle) :</label>
+          <label>Question 1 :</label>
           <div class="question-prefix">Qui est le plus susceptible de...</div>
-          <input type="text" id="custom-question-1" placeholder="... danser sur la table ?" maxlength="100">
+          <input type="text" class="custom-q-input" placeholder="... finir en prison ?" maxlength="100">
         </div>
+        
         <div class="question-input-group">
-          <label>Question 2 (optionnelle) :</label>
+          <label>Question 2 :</label>
           <div class="question-prefix">Qui est le plus susceptible de...</div>
-          <input type="text" id="custom-question-2" placeholder="...oublier son téléphone ?" maxlength="100">
+          <input type="text" class="custom-q-input" placeholder="... devenir millionnaire ?" maxlength="100">
         </div>
+
         <div class="question-input-group">
-          <label>Question 3 (optionnelle) :</label>
+          <label>Question 3 :</label>
           <div class="question-prefix">Qui est le plus susceptible de...</div>
-          <input type="text" id="custom-question-3" placeholder="...faire un karaoké ?" maxlength="100">
-        </div>        
-        <div class="questions-info">
-          💡 <strong>Laisse vide</strong> pour des questions aléatoires
+          <input type="text" class="custom-q-input" placeholder="... rater son avion ?" maxlength="100">
         </div>
         
         <button id="submit-questions-btn" class="btn btn-primary">
-          📤 Valider mes questions
+          📤 Valider mes 3 questions
         </button>
-        
-        <div id="questions-submitted-message" class="hidden">
-          ✅ Validé ! <br>
-          <span id="questions-submitted-detail"></span>
-        </div>
       </div>
       
       <div class="submitted-players">

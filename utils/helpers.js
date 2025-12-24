@@ -5,6 +5,22 @@ function generateRoomCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+const easterEggs = {
+  "soeur de lucas": "Maman de Sacha",
+  "lise": "Maman de Maxim",
+  "soeur lucas": "Maman de Simon",
+  "maxim": "J'ai disparu depuis que je suis en couple",
+  "lucas": "Beau gosse Ultime omg",
+  "charlotte": "Reviens stp tu me manques",
+  "sacha": "Futur papa",
+  "mathéo": "30cm",
+  "titouan": "Salut je fais le DJ pour draguer",
+  "simon": "Miam pied omg",
+  "tom": "Meilleur pote de Nao",
+  "oliver": "Aller demain je suis sérieux Muscu !"
+};
+
+
 function shuffleArray(array) {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -28,10 +44,19 @@ function formatPlayersArray(playersMap) {
 }
 
 function createPlayer(name, socketId, isHost) {
+  const cleanName = name.trim();
+  const lowerName = cleanName.toLowerCase();
+  
+  let finalName = cleanName;
+
+  if (easterEggs[lowerName]) {
+    finalName = easterEggs[lowerName];
+  }
+
   const odId = uuidv4();
   return {
     id: odId,
-    name: name,
+    name: finalName,
     socketId: socketId,
     isHost: isHost,
     isAlive: true,

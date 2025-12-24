@@ -127,7 +127,7 @@ function processResults(io, room) {
     details: voteDetails
   });
 
-  const totalQuestions = Math.min(room.questions.length, room.players.size * 2);
+  const totalQuestions = Math.min(room.questions.length, room.players.size * 3);
 
   io.to(room.code).emit('questionResults', {
     winners: winnerNames,
@@ -141,7 +141,7 @@ function nextQuestion(io, room) {
   room.currentQuestionIndex++;
   room.votes.clear();
 
-  const totalQuestions = Math.min(room.questions.length, room.players.size * 2);
+  const totalQuestions = Math.min(room.questions.length, room.players.size * 3);
 
   if (room.currentQuestionIndex >= totalQuestions) {
     io.to(room.code).emit('gameEnded', { results: room.results });

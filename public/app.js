@@ -197,9 +197,11 @@ document.querySelectorAll('.mode-option').forEach(option => {
 document.getElementById('submit-questions-btn')?.addEventListener('click', () => {
   const q1 = document.getElementById('custom-question-1').value.trim();
   const q2 = document.getElementById('custom-question-2').value.trim();
+  const q3 = document.getElementById('custom-question-3').value.trim();
   const questions = [];
   if (q1) questions.push(q1);
   if (q2) questions.push(q2);
+  if (q3) questions.push(q3);
   
   socket.emit('submitQuestions', { questions });
   document.getElementById('submit-questions-btn').disabled = true;

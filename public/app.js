@@ -27,17 +27,7 @@ let state = {
 const avatars = ['😀', '😎', '🥳', '🤩', '😺', '🦊', '🐻', '🐼', '🐨', '🦁', '🐸', '🐙', '🦋', '🐢', '🦄', '🐳', '🦜', '🦔', '🐲', '🎃'];
 
 // Segments de la roue (identiques au backend pour la cohérence visuelle)
-const wheelSegments = [
-  { color: '#e74c3c', name: '{player1} prend cher', count: 1, target: 'player1', gages: ["{player1} boit un verre !", "{player1} cul sec !"] },
-  { color: '#f39c12', name: '{player2} prend cher', count: 1, target: 'player2', gages: ["{player2} boit un verre !", "{player2} cul sec !"] },
-  { color: '#2ecc71', name: 'Tranquillou', count: 0, target: 'none', gages: ["Personne ne boit !", "Pause générale !"] },
-  { color: '#3498db', name: 'Collectif', count: 1, target: 'both', gages: ["Santé ! Tout le monde boit !", "Les deux trinquent !"] },
-  { color: '#9b59b6', name: '{player1} le master', count: 0, target: 'player1_gives', gages: ["{player1} distribue 2 gorgées !", "{player1} invente une règle !"] },
-  { color: '#1abc9c', name: '{player2} le master', count: 0, target: 'player2_gives', gages: ["{player2} distribue 2 gorgées !", "{player2} invente une règle !"] },
-  { color: '#e67e22', name: 'Défi du destin', count: 1, target: 'game', gages: ["Pierre-Feuille-Ciseaux : le perdant boit !", "Bras de fer !"] },
-  { color: '#34495e', name: 'Jackpot ou Crash', count: 3, target: 'jackpot', gages: ["JACKPOT ! {player1} boit 3 verres !", "CATASTROPHE ! Tout le monde finit son verre !"] }
-];
-
+let wheelSegments = []
 // ==================== DOM ELEMENTS ====================
 const screens = {
   home: document.getElementById('home-screen'),
@@ -142,9 +132,8 @@ document.querySelectorAll('.game-option').forEach(option => {
 document.querySelectorAll('.game-option-small').forEach(option => {
   option.addEventListener('click', () => {
     const val = option.querySelector('input').value;
-    state.gameType = val;
+    // On ne change pas state.gameType ici, on attend la confirmation du serveur
     socket.emit('changeGameType', val);
-    // UI Update handled by socket event
   });
 });
 
@@ -275,13 +264,18 @@ document.getElementById('roulette-copy-code-btn')?.addEventListener('click', () 
 });
 
 // Jeu
-document.getElementById('spin-wheel-btn')?.addEventListener('click', spinWheel);
+document.getElementById('spin-wheel-btn')?.addEventListener('click', () => {
+  document.getElementById('spin-wheel-btn').disabled = true;
+  socket.emit('requestSpin');
+});
 document.getElementById('spin-again-btn')?.addEventListener('click', () => {
-  document.getElementById('roulette-result').classList.add('hidden');
-  document.getElementById('roulette-actions').classList.add('hidden');
-  document.getElementById('spin-wheel-btn').classList.remove('hidden');
-  document.getElementById('spin-wheel-btn').disabled = false;
-  document.getElementById('spin-wheel-btn').textContent = '🎰 Tourner la roue !';
+  const btn = document.getElementById('spin-again-btn');
+  // 1. Je désactive mon bouton tout de suite pour éviter le double-clic
+  btn.disabled = true;
+  btn.textContent = 'Attente...';
+  
+  // 2. Je demande au serveur de relancer pour tout le monde
+  socket.emit('requestNextTurn');
 });
 document.getElementById('roulette-quit-btn')?.addEventListener('click', () => location.reload());
 
@@ -310,39 +304,60 @@ function startRouletteGame() {
   showScreen('rouletteGame');
 }
 
-function spinWheel() {
+// ==================== LOGIQUE ROULETTE (SYNC) ====================
+
+// Cet événement est reçu par TOUS les joueurs en même temps
+socket.on('rouletteSpinStart', (data) => {
+  // SECURITE : Si wheelSegments est vide (bug de chargement), on évite le crash
+  if (!wheelSegments || wheelSegments.length === 0) {
+      console.error("Erreur critique : Données de la roue manquantes !");
+      showToast("Erreur de chargement. Veuillez rafraîchir.", "error");
+      return;
+  }
+
   const wheel = document.getElementById('roulette-wheel');
   const btn = document.getElementById('spin-wheel-btn');
-  btn.disabled = true;
-
-  // Calcul du résultat (Calcul côté client pour l'animation locale)
-  const segmentIndex = Math.floor(Math.random() * wheelSegments.length);
-  const segmentAngle = 360 / wheelSegments.length;
-  // Calcul pour arriver au centre du segment
-  const stopAngle = 360 - ((segmentIndex * segmentAngle) + (segmentAngle / 2)); 
-  // Ajout de tours aléatoires (min 5 tours)
-  const rotations = 360 * (5 + Math.floor(Math.random() * 3));
   
-  // Ajustement par rapport à la rotation actuelle pour éviter les retours en arrière visuels
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'La roue tourne...';
+  }
+
+  const segmentAngle = 360 / wheelSegments.length;
+  // Calcul protégé
+  const stopAngle = 360 - ((data.segmentIndex * segmentAngle) + (segmentAngle / 2)); 
+  const randomOffset = (Math.random() * 10) - 5; 
+  const rotations = 360 * 5;
   const currentRot = state.currentWheelRotation % 360;
-  const targetRotation = state.currentWheelRotation + rotations + (stopAngle - currentRot);
+  const targetRotation = state.currentWheelRotation + rotations + (stopAngle - currentRot) + randomOffset;
   
   state.currentWheelRotation = targetRotation;
-  
   wheel.style.transform = `rotate(${targetRotation}deg)`;
 
   setTimeout(() => {
-    const result = wheelSegments[segmentIndex];
-    const gage = result.gages[Math.floor(Math.random() * result.gages.length)];
-    
-    // Si online, on notifie le serveur du résultat
-    if (state.rouletteMode === 'online') {
-      socket.emit('rouletteResult', { segment: result, gage: gage });
-    }
-    
-    showRouletteResult(result, gage);
-  }, 4000); // Durée de la transition CSS
-}
+    showRouletteResult(data.segment, data.gage);
+    // On ne reset PAS le bouton ici, on attend le "Rejouer" ou le "Next Turn"
+  }, 4000);
+});
+
+socket.on('rouletteResetUI', () => {
+  // 1. Cacher les résultats
+  document.getElementById('roulette-result').classList.add('hidden');
+  document.getElementById('roulette-actions').classList.add('hidden');
+  
+  // 2. Réafficher le bouton Tourner
+  const spinBtn = document.getElementById('spin-wheel-btn');
+  spinBtn.classList.remove('hidden');
+  spinBtn.disabled = false;
+  spinBtn.textContent = '🎰 Tourner la roue !';
+  
+  // 3. Réinitialiser le bouton Rejouer (pour la prochaine fois)
+  const replayBtn = document.getElementById('spin-again-btn');
+  if (replayBtn) {
+    replayBtn.disabled = false;
+    replayBtn.textContent = '🔄 Rejouer';
+  }
+});
 
 function showRouletteResult(segment, gage) {
   const resultDiv = document.getElementById('roulette-result');
@@ -373,94 +388,104 @@ function showRouletteResult(segment, gage) {
 
 // --- Room Events ---
 socket.on('roomCreated', (data) => {
-  // Cas spécifique Roulette Online Host
-  if (data.gameType === 'roulette') {
-    state.roomCode = data.roomCode;
-    state.playerId = data.playerId;
-    state.isHost = true;
-    state.roulettePlayer1 = state.playerName;
-    state.rouletteMode = 'online';
-    
-    document.getElementById('roulette-room-code').textContent = data.roomCode;
-    document.getElementById('roulette-slot-1-name').textContent = state.playerName;
-    showScreen('rouletteOnlineLobby');
-    return;
-  }
-
-  // Autres jeux
-  state.roomCode = data.roomCode;
-  state.playerId = data.playerId;
-  state.isHost = true;
-  state.gameType = data.gameType;
-  state.players = data.players;
-  
-  document.getElementById('display-room-code').textContent = data.roomCode;
-  document.getElementById('host-controls').classList.remove('hidden');
-  document.getElementById('hotseat-options').classList.remove('hidden'); // Par défaut
-  updatePlayersList();
-  updateRulesDisplay(data.gameType);
-  showScreen('lobby');
+  handleRoomConnection(data);
 });
 
 socket.on('roomJoined', (data) => {
-  // Cas spécifique Roulette Online Joiner
-  if (data.gameType === 'roulette') {
-    state.roomCode = data.roomCode;
-    state.playerId = data.playerId;
-    state.gameType = 'roulette';
-    state.rouletteMode = 'online';
-    state.roulettePlayer2 = state.playerName;
-    // Si le host est déjà là
-    if (data.players[0]) state.roulettePlayer1 = data.players[0].name;
+  handleRoomConnection(data);
+});
 
-    document.getElementById('roulette-room-code').textContent = data.roomCode;
-    document.getElementById('roulette-slot-1-name').textContent = state.roulettePlayer1 || '...';
-    document.getElementById('roulette-slot-2-name').textContent = state.playerName;
-    showScreen('rouletteOnlineLobby');
-    return;
-  }
-
+function handleRoomConnection(data) {
   state.roomCode = data.roomCode;
   state.playerId = data.playerId;
   state.gameType = data.gameType;
-  state.questionMode = data.questionMode || 'default';
   state.players = data.players;
+  state.isHost = (data.players[0].id === state.playerId); // Simple check
+
+  // IMPORTANT : Récupérer la config de la roue si fournie
+  if (data.wheelConfig) {
+    wheelSegments = data.wheelConfig;
+  }
+
+  // Cas Spécial Roulette Online
+  if (data.gameType === 'roulette' && state.rouletteMode === 'online') {
+     document.getElementById('roulette-room-code').textContent = data.roomCode;
+     document.getElementById('roulette-slot-1-name').textContent = data.players[0] ? data.players[0].name : '...';
+     document.getElementById('roulette-slot-2-name').textContent = data.players[1] ? data.players[1].name : 'En attente...';
+     showScreen('rouletteOnlineLobby');
+     return;
+  }
 
   document.getElementById('display-room-code').textContent = data.roomCode;
-  document.getElementById('host-controls').classList.add('hidden');
-  document.getElementById('hotseat-options').classList.add('hidden');
-  document.getElementById('waiting-message').classList.remove('hidden');
+  
+  // UI Host vs Guest
+  if (state.isHost) {
+      document.getElementById('host-controls').classList.remove('hidden');
+      document.getElementById('waiting-message').classList.add('hidden');
+  } else {
+      document.getElementById('host-controls').classList.add('hidden');
+      document.getElementById('waiting-message').classList.remove('hidden');
+  }
+
+  // Update HotSeat options visibility
+  if (state.gameType === 'hotseat' && state.isHost) {
+      document.getElementById('hotseat-options').classList.remove('hidden');
+  } else {
+      document.getElementById('hotseat-options').classList.add('hidden');
+  }
+
   updatePlayersList();
   updateRulesDisplay(data.gameType);
-  showScreen('lobby');
-});
+  checkGameAvailability(); // <--- VERIFICATION IMMEDIATE
+  
+  if (data.gameType !== 'roulette') {
+      showScreen('lobby');
+  }
+}
 
 socket.on('playerJoined', ({ players }) => {
   state.players = players;
-  if (state.gameType === 'roulette' && players.length >= 2) {
-    state.roulettePlayer2 = players[1].name;
-    document.getElementById('roulette-slot-2-name').textContent = players[1].name;
-    if (state.isHost) document.getElementById('roulette-online-start-btn').classList.remove('hidden');
-  } else {
-    updatePlayersList();
-    checkGameAvailability();
+  updatePlayersList();
+  checkGameAvailability(); // <--- A CHAQUE NOUVEAU JOUEUR
+  
+  // Update spécifique Lobby Roulette
+  if (state.gameType === 'roulette' && document.getElementById('roulette-online-lobby-screen').classList.contains('active')) {
+      if (players[1]) {
+          document.getElementById('roulette-slot-2-name').textContent = players[1].name;
+          if(state.isHost) document.getElementById('roulette-online-start-btn').classList.remove('hidden');
+      }
   }
 });
 
 socket.on('playerLeft', ({ players }) => {
   state.players = players;
   updatePlayersList();
-  checkGameAvailability();
+  checkGameAvailability(); // <--- A CHAQUE DEPART
 });
 
-socket.on('gameTypeChanged', ({ gameType }) => {
-  state.gameType = gameType;
-  updateRulesDisplay(gameType);
-  // Met à jour la sélection visuelle pour les clients non-host
+socket.on('gameTypeChanged', (data) => {
+  state.gameType = data.gameType;
+  
+  // IMPORTANT : Mettre à jour la roue si on vient de basculer dessus
+  if (data.wheelConfig) {
+    wheelSegments = data.wheelConfig;
+  }
+
+  updateRulesDisplay(data.gameType);
+  checkGameAvailability(); // <--- VERIFIER SI L'ETAT EST VALIDE
+
+  // Visuel Boutons
   document.querySelectorAll('.game-option-small input').forEach(input => {
-    if (input.value === gameType) input.parentElement.classList.add('selected');
+    if (input.value === data.gameType) input.parentElement.classList.add('selected');
     else input.parentElement.classList.remove('selected');
   });
+
+  // Visuel Options HotSeat
+  if (data.gameType === 'hotseat' && state.isHost) {
+      document.getElementById('hotseat-options').classList.remove('hidden');
+  } else {
+      document.getElementById('hotseat-options').classList.add('hidden');
+  }
 });
 
 socket.on('questionModeChanged', ({ questionMode }) => {
@@ -475,6 +500,9 @@ socket.on('gameStarted', (data) => {
   if (data.gameType === 'roulette') {
     state.roulettePlayer1 = data.player1Name;
     state.roulettePlayer2 = data.player2Name;
+    if (data.wheelConfig) {
+      wheelSegments = data.wheelConfig;
+    }
     startRouletteGame();
   } else if (data.gameType === 'undercover') {
     // Setup Undercover UI
@@ -657,30 +685,6 @@ socket.on('undercoverGameEnd', (data) => {
   
   document.getElementById('uc-restart-btn').classList.toggle('hidden', !state.isHost);
   showScreen('undercoverEnd');
-});
-
-// --- Roulette Online Logic ---
-socket.on('rouletteSpinResult', (data) => {
-  // Si c'est moi qui ai tourné, j'ai déjà vu l'animation
-  if (data.spinnerId === state.playerId) return;
-
-  // Animation pour l'adversaire
-  // On doit trouver l'angle pour atterrir sur le bon segment envoyé par le serveur
-  const wheel = document.getElementById('roulette-wheel');
-  const segmentIndex = wheelSegments.findIndex(s => s.name === data.segment.name); // Simple match by name
-  
-  const segmentAngle = 360 / wheelSegments.length;
-  const stopAngle = 360 - ((segmentIndex * segmentAngle) + (segmentAngle / 2));
-  const rotations = 360 * 5;
-  const currentRot = state.currentWheelRotation % 360;
-  const targetRotation = state.currentWheelRotation + rotations + (stopAngle - currentRot);
-  
-  state.currentWheelRotation = targetRotation;
-  wheel.style.transform = `rotate(${targetRotation}deg)`;
-  
-  setTimeout(() => {
-    showRouletteResult(data.segment, data.gage);
-  }, 4000);
 });
 
 socket.on('roulettePlayerLeft', () => {

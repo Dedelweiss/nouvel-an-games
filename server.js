@@ -1,12 +1,12 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
-// Imports locaux
 const { generateRoomCode, formatPlayersArray, createPlayer } = require('./utils/helpers');
 const hotSeatGame = require('./games/hotseat');
 const undercoverGame = require('./games/undercover');
-const rouletteGame = require('./games/roulette');
+const rouletteGame = require('./games/roulette'); // Import du module
 
 const app = express();
 const server = http.createServer(app);
@@ -14,13 +14,12 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// Stockage des parties
 const rooms = new Map();
 
 io.on('connection', (socket) => {
   console.log('Utilisateur connecté:', socket.id);
 
-  // --- CRÉATION DE PARTIE ---
+  // --- CRÉATION ---
   socket.on('createRoom', (data) => {
     let playerName, gameType;
     if (typeof data === 'string') {
@@ -32,8 +31,6 @@ io.on('connection', (socket) => {
     }
 
     const roomCode = generateRoomCode();
-    
-    // Objet Room
     const room = {
       code: roomCode,
       host: null,
@@ -43,12 +40,10 @@ io.on('connection', (socket) => {
       gameStarted: false,
     };
 
-    // Initialisation des modules
     hotSeatGame.initGame(room);
     undercoverGame.initGame(room);
     rouletteGame.initGame(room);
 
-    // Création Host
     const player = createPlayer(playerName, socket.id, true);
     room.host = player.id;
     room.players.set(player.id, player);
@@ -62,26 +57,29 @@ io.on('connection', (socket) => {
       roomCode,
       playerId: player.id,
       gameType: room.gameType,
-      players: formatPlayersArray(room.players)
+      players: formatPlayersArray(room.players),
+      // Si on crée une roulette direct, on envoie la config
+      wheelConfig: (gameType === 'roulette') ? rouletteGame.getWheelConfig() : null
     });
     console.log(`Partie ${gameType} créée: ${roomCode}`);
   });
 
-  // --- REJOINDRE UNE PARTIE ---
+  // --- REJOINDRE ---
   socket.on('joinRoom', ({ roomCode, playerName }) => {
     const room = rooms.get(roomCode.toUpperCase());
-    
-    if (!room) {
-      return socket.emit('error', { message: 'Code de partie invalide' });
-    }
+    if (!room) return socket.emit('error', { message: 'Code invalide' });
 
-    // Validation Roulette : Max 2 joueurs
+    // Validation stricte Roulette (Max 2)
     if (room.gameType === 'roulette' && room.players.size >= 2) {
-      return socket.emit('error', { message: 'La partie de Roulette est complète (2 max)' });
+      return socket.emit('error', { message: 'La partie est complète (Max 2 joueurs)' });
     }
 
-    if (room.gameStarted) {
-      return socket.emit('error', { message: 'La partie a déjà commencé' });
+    if (room.gameStarted) return socket.emit('error', { message: 'La partie a déjà commencé' });
+
+    // Annuler suppression si salle vide
+    if (room.deleteTimeout) {
+      clearTimeout(room.deleteTimeout);
+      room.deleteTimeout = null;
     }
 
     const player = createPlayer(playerName, socket.id, false);
@@ -92,35 +90,40 @@ io.on('connection', (socket) => {
     socket.odId = player.id;
 
     const playersData = formatPlayersArray(room.players);
+    
+    // REFACTOR IMPORTANT : On envoie la config de la roue ici aussi
     socket.emit('roomJoined', {
       roomCode: room.code,
       playerId: player.id,
       gameType: room.gameType,
       questionMode: room.questionMode,
-      players: playersData
+      players: playersData,
+      wheelConfig: (room.gameType === 'roulette') ? rouletteGame.getWheelConfig() : null
     });
+    
     socket.to(room.code).emit('playerJoined', { players: playersData });
   });
 
-  // --- CONFIGURATION (CORRECTION ICI POUR LE CHANGEMENT DE JEU) ---
+  // --- CONFIGURATION ---
   socket.on('changeGameType', (gameType) => {
     const room = rooms.get(socket.roomCode);
     if (!room || room.host !== socket.odId) return;
 
-    // --- CORRECTION : Validation avant de changer de jeu ---
+    // Validation avant changement
     if (gameType === 'undercover' && room.players.size < 4) {
-      // On remet le type précédent pour l'hôte visuellement s'il a forcé le changement
-      io.to(room.hostSocketId).emit('gameTypeChanged', { gameType: room.gameType }); 
-      return socket.emit('error', { message: 'Il faut au moins 4 joueurs pour passer en Undercover' });
+      return socket.emit('error', { message: 'Il faut 4 joueurs min. pour Undercover' });
     }
-    
     if (gameType === 'roulette' && room.players.size > 2) {
-       return socket.emit('error', { message: 'Trop de joueurs pour la Roulette (Max 2)' });
+      return socket.emit('error', { message: 'Max 2 joueurs pour la Roulette' });
     }
-    // -------------------------------------------------------
 
     room.gameType = gameType;
-    io.to(room.code).emit('gameTypeChanged', { gameType });
+    
+    // On notifie tout le monde et on envoie la config si c'est roulette
+    io.to(room.code).emit('gameTypeChanged', { 
+      gameType,
+      wheelConfig: (gameType === 'roulette') ? rouletteGame.getWheelConfig() : null
+    });
   });
 
   socket.on('changeQuestionMode', (mode) => {
@@ -131,18 +134,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- DÉMARRAGE (CORRECTION DES VALIDATIONS) ---
+  // --- DÉMARRAGE ---
   socket.on('startGame', (data) => {
     const room = rooms.get(socket.roomCode);
     if (!room || room.host !== socket.odId) return;
 
     if (data && data.questionMode) room.questionMode = data.questionMode;
 
-    // 1. Validation Hot Seat
     if (room.gameType === 'hotseat') {
-      if (room.players.size < 2) {
-        return socket.emit('error', { message: 'Il faut au moins 2 joueurs pour Hot Seat !' });
-      }
+      if (room.players.size < 2) return socket.emit('error', { message: 'Il faut au moins 2 joueurs' });
       
       if (room.questionMode === 'custom') {
         io.to(room.code).emit('collectQuestions', { totalPlayers: room.players.size });
@@ -151,77 +151,67 @@ io.on('connection', (socket) => {
         hotSeatGame.startGame(io, room);
       }
     } 
-    // 2. Validation Undercover
     else if (room.gameType === 'undercover') {
-      if (room.players.size < 4) {
-        return socket.emit('error', { message: 'Il faut au moins 4 joueurs pour Undercover !' });
-      }
+      if (room.players.size < 4) return socket.emit('error', { message: 'Il faut au moins 4 joueurs' });
       room.gameStarted = true;
       undercoverGame.startGame(io, room);
     } 
-    // 3. Validation Roulette
     else if (room.gameType === 'roulette') {
-      if (room.players.size < 2) {
-        return socket.emit('error', { message: 'Il faut exactement 2 joueurs pour la Roulette !' });
-      }
+      if (room.players.size < 2) return socket.emit('error', { message: 'Il faut 2 joueurs' });
       room.gameStarted = true;
       rouletteGame.startGame(io, room);
     }
   });
 
-  // --- ÉVÉNEMENTS HOT SEAT ---
-  socket.on('submitQuestions', ({ questions }) => {
-    const room = rooms.get(socket.roomCode);
-    if (room && room.gameType === 'hotseat') {
-      hotSeatGame.submitQuestions(io, socket, room, questions);
-    }
+  // --- ROUTAGE JEUX ---
+  socket.on('submitQuestions', (d) => {
+    const r = rooms.get(socket.roomCode);
+    if (r?.gameType === 'hotseat') hotSeatGame.submitQuestions(io, socket, r, d.questions);
   });
-
-  socket.on('vote', (votedId) => {
-    const room = rooms.get(socket.roomCode);
-    if (!room || !room.gameStarted) return;
-    
-    if (room.gameType === 'hotseat') {
-      hotSeatGame.handleVote(io, socket, room, votedId);
-    } else if (room.gameType === 'undercover') {
-      undercoverGame.handleVote(io, socket, room, votedId);
-    }
+  
+  socket.on('vote', (id) => {
+    const r = rooms.get(socket.roomCode);
+    if (!r?.gameStarted) return;
+    if (r.gameType === 'hotseat') hotSeatGame.handleVote(io, socket, r, id);
+    else if (r.gameType === 'undercover') undercoverGame.handleVote(io, socket, r, id);
   });
 
   socket.on('nextQuestion', () => {
-    const room = rooms.get(socket.roomCode);
-    if (room && room.gameType === 'hotseat') hotSeatGame.nextQuestion(io, room);
+    const r = rooms.get(socket.roomCode);
+    if (r?.gameType === 'hotseat') hotSeatGame.nextQuestion(io, r);
   });
 
-  // --- ÉVÉNEMENTS UNDERCOVER ---
   socket.on('hintDone', () => {
-    const room = rooms.get(socket.roomCode);
-    if (room && room.gameType === 'undercover') undercoverGame.handleHint(io, socket, room);
+    const r = rooms.get(socket.roomCode);
+    if (r?.gameType === 'undercover') undercoverGame.handleHint(io, socket, r);
   });
 
-  socket.on('mrWhiteGuessWord', (word) => {
-    const room = rooms.get(socket.roomCode);
-    if (room && room.gameType === 'undercover') undercoverGame.handleMrWhiteGuess(io, socket, room, word);
+  socket.on('mrWhiteGuessWord', (w) => {
+    const r = rooms.get(socket.roomCode);
+    if (r?.gameType === 'undercover') undercoverGame.handleMrWhiteGuess(io, socket, r, w);
   });
 
-  // --- ÉVÉNEMENTS ROULETTE ---
-  socket.on('rouletteResult', (data) => {
-    const room = rooms.get(socket.roomCode);
-    if (room && room.gameType === 'roulette') rouletteGame.handleResult(io, socket, room, data);
+  // Roulette Events
+  socket.on('requestSpin', () => {
+    const r = rooms.get(socket.roomCode);
+    if (r?.gameType === 'roulette') rouletteGame.handleSpinRequest(io, socket, r);
   });
 
-  // --- RESTART ---
+  socket.on('requestNextTurn', () => {
+    const r = rooms.get(socket.roomCode);
+    if (r?.gameType === 'roulette') rouletteGame.handleNextTurn(io, r);
+  });
+
+  // --- SYSTÈME ---
   socket.on('restartGame', () => {
     const room = rooms.get(socket.roomCode);
     if (!room || room.host !== socket.odId) return;
 
     room.gameStarted = false;
-    // Réinitialiser les états
     hotSeatGame.initGame(room);
     undercoverGame.initGame(room);
     rouletteGame.initGame(room);
 
-    // Reset joueurs
     room.players.forEach(p => {
       p.isAlive = true;
       p.isUndercover = false;
@@ -234,37 +224,27 @@ io.on('connection', (socket) => {
     io.to(room.code).emit('gameRestarted', { players: formatPlayersArray(room.players) });
   });
 
-  // --- DÉCONNEXION ---
   socket.on('disconnect', () => {
     const room = rooms.get(socket.roomCode);
     if (!room) return;
 
     const player = room.players.get(socket.odId);
-    
-    // Gestion spécifique déconnexion Undercover
     if (room.gameStarted && room.gameType === 'undercover' && player) {
        player.isAlive = false;
        io.to(room.code).emit('playerDisconnected', { 
          playerName: player.name, 
          players: formatPlayersArray(room.players) 
        });
-       // Note : Pour une gestion parfaite de l'undercover (passer le tour si c'est à lui),
-       // il faudrait appeler une fonction dans undercoverGame.js ici.
     } else {
       room.players.delete(socket.odId);
     }
 
     if (room.players.size === 0) {
-      console.log(`Salle ${socket.roomCode} vide. Suppression programmée dans 5 min...`);
-      
+      console.log(`Salle ${socket.roomCode} vide. Suppression dans 5 min...`);
       room.deleteTimeout = setTimeout(() => {
-        if (rooms.has(socket.roomCode)) {
-          rooms.delete(socket.roomCode);
-          console.log(`🗑️ Salle ${socket.roomCode} supprimée définitivement.`);
-        }
+        if (rooms.has(socket.roomCode)) rooms.delete(socket.roomCode);
       }, 5 * 60 * 1000);
     } else {
-      // Transfert d'hôte si nécessaire
       if (room.host === socket.odId) {
         const newHost = Array.from(room.players.values()).find(p => p.isAlive !== false);
         if (newHost) {
@@ -272,17 +252,13 @@ io.on('connection', (socket) => {
           newHost.isHost = true;
         }
       }
-      
-      if (room.gameType === 'roulette') {
-          io.to(room.code).emit('roulettePlayerLeft');
-      } else {
-          io.to(room.code).emit('playerLeft', { players: formatPlayersArray(room.players) });
-      }
+      if (room.gameType === 'roulette') io.to(room.code).emit('roulettePlayerLeft');
+      else io.to(room.code).emit('playerLeft', { players: formatPlayersArray(room.players) });
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🎉 Serveur modulaire lancé sur http://localhost:${PORT}`);
+  console.log(`🎉 Serveur lancé sur http://localhost:${PORT}`);
 });

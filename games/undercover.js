@@ -34,15 +34,44 @@ function initGame(room) {
   room.waitingForMrWhite = null;
 }
 
-function startGame(io, room) {
+// games/undercover.js
+
+// On garde les imports ...
+
+function startGame(io, room, settings = {}) {
   const playerIds = Array.from(room.players.keys());
   const shuffledIds = shuffleArray(playerIds);
-  const undercoverCount = getUndercoverCount(playerIds.length);
-  const pairIndex = Math.floor(Math.random() * wordPairs.length);
+  const totalPlayers = playerIds.length;
+
+  let hasMrWhite = false;
+  if (settings.includeMrWhite !== undefined) {
+    hasMrWhite = settings.includeMrWhite;
+  } else {
+    hasMrWhite = totalPlayers >= 5;
+  }
+
+  let undercoverCount = 1;
+  if (settings.undercoverCount) {
+    undercoverCount = settings.undercoverCount;
+  } else {
+    undercoverCount = Math.floor((totalPlayers - (hasMrWhite ? 1 : 0)) / 3) || 1;
+  }
   
+  const maxImpostors = totalPlayers - 1; // Il faut au moins 1 civil
+  const totalImpostors = undercoverCount + (hasMrWhite ? 1 : 0);
+  
+  if (totalImpostors > maxImpostors) {
+    undercoverCount = Math.max(1, maxImpostors - (hasMrWhite ? 1 : 0));
+  }
+
+  const pairIndex = Math.floor(Math.random() * wordPairs.length);
   room.currentWordPair = wordPairs[pairIndex];
+
   const undercoverIds = shuffledIds.slice(0, undercoverCount);
-  let mrWhiteId = (playerIds.length >= 10) ? shuffledIds[undercoverCount] : null;
+  let mrWhiteId = null;
+  if (hasMrWhite) {
+    mrWhiteId = shuffledIds[undercoverCount]; // Prend l'ID juste après les undercovers
+  }
 
   room.players.forEach((player, odId) => {
     player.isAlive = true;
@@ -55,7 +84,7 @@ function startGame(io, room) {
     } else if (odId === mrWhiteId) {
       player.isUndercover = false;
       player.isMrWhite = true;
-      player.word = "??? ";
+      player.word = "???"; // Pas de mot pour Mr White
     } else {
       player.isUndercover = false;
       player.isMrWhite = false;
@@ -69,6 +98,7 @@ function startGame(io, room) {
   room.votes.clear();
   room.eliminatedPlayers = [];
 
+  // Envoi aux joueurs
   room.players.forEach((player) => {
     const pSocket = io.sockets.sockets.get(player.socketId);
     if (pSocket) {

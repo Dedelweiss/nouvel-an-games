@@ -412,6 +412,11 @@ function handleRoomConnection(data) {
   if (data.wheelConfig) {
     wheelSegments = data.wheelConfig;
   }
+  if (state.gameType === 'undercover' && state.isHost) {
+    document.getElementById('undercover-options').classList.remove('hidden');
+  } else {
+    document.getElementById('undercover-options').classList.add('hidden');
+  }
 
   // === LOGIQUE ROULETTE ===
   if (data.gameType === 'roulette') {
@@ -525,27 +530,30 @@ socket.on('playerJoined', ({ players }) => {
 socket.on('playerLeft', ({ players }) => {
   state.players = players;
   updatePlayersList();
-  checkGameAvailability(); // <--- A CHAQUE DEPART
+  checkGameAvailability();
 });
 
 socket.on('gameTypeChanged', (data) => {
   state.gameType = data.gameType;
   
-  // IMPORTANT : Mettre à jour la roue si on vient de basculer dessus
   if (data.wheelConfig) {
     wheelSegments = data.wheelConfig;
   }
 
   updateRulesDisplay(data.gameType);
-  checkGameAvailability(); // <--- VERIFIER SI L'ETAT EST VALIDE
+  checkGameAvailability();
 
-  // Visuel Boutons
   document.querySelectorAll('.game-option-small input').forEach(input => {
     if (input.value === data.gameType) input.parentElement.classList.add('selected');
     else input.parentElement.classList.remove('selected');
   });
 
-  // Visuel Options HotSeat
+  if (state.gameType === 'undercover' && state.isHost) {
+    document.getElementById('undercover-options').classList.remove('hidden');
+  } else {
+    document.getElementById('undercover-options').classList.add('hidden');
+  }
+
   if (data.gameType === 'hotseat' && state.isHost) {
       document.getElementById('hotseat-options').classList.remove('hidden');
   } else {
@@ -796,6 +804,40 @@ socket.on('gameRestarted', ({ players }) => {
   updatePlayersList();
   showScreen('lobby');
   showToast("🔄 Une nouvelle partie va commencer !", "success");
+});
+
+// public/app.js
+
+// Gestion du nombre d'Undercovers
+let desiredUcCount = 1;
+
+document.getElementById('btn-less-uc')?.addEventListener('click', () => {
+  if (desiredUcCount > 1) {
+    desiredUcCount--;
+    document.getElementById('uc-count-display').textContent = desiredUcCount;
+  }
+});
+
+document.getElementById('btn-more-uc')?.addEventListener('click', () => {
+  // Règle : Max la moitié des joueurs moins 1 (pour laisser de la place aux civils)
+  const maxUc = Math.max(1, Math.floor((state.players.length - 1) / 2));
+  
+  if (desiredUcCount < maxUc) {
+    desiredUcCount++;
+    document.getElementById('uc-count-display').textContent = desiredUcCount;
+  } else {
+    showToast(`Maximum ${maxUc} imposteurs pour ${state.players.length} joueurs`, 'info');
+  }
+});
+
+// MODIFIER LE START GAME pour envoyer les réglages
+document.getElementById('start-game-btn').addEventListener('click', () => {
+  const settings = {
+    questionMode: state.questionMode, // pour HotSeat
+    undercoverCount: desiredUcCount,  // Nouveau
+    includeMrWhite: document.getElementById('mr-white-check').checked // Nouveau
+  };
+  socket.emit('startGame', settings);
 });
 
 socket.on('error', ({ message }) => showToast(message, 'error'));

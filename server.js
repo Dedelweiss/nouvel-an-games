@@ -156,7 +156,7 @@ io.on('connection', (socket) => {
     else if (room.gameType === 'undercover') {
       if (room.players.size < 4) return socket.emit('error', { message: 'Il faut au moins 4 joueurs' });
       room.gameStarted = true;
-      undercoverGame.startGame(io, room);
+      undercoverGame.startGame(io, room, data);
     } 
     else if (room.gameType === 'roulette') {
       if (room.players.size < 2) return socket.emit('error', { message: 'Il faut 2 joueurs' });

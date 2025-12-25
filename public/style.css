@@ -1116,8 +1116,8 @@ input[type="text"]::placeholder {
 }
 
 .roulette-player-slot.ready {
-  background:  rgba(46, 204, 113, 0.2);
-  border:  1px solid rgba(46, 204, 113, 0.5);
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.2);
 }
 
 .slot-icon {

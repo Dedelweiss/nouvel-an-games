@@ -407,25 +407,65 @@ function handleRoomConnection(data) {
   state.playerId = data.playerId;
   state.gameType = data.gameType;
   state.players = data.players;
-  state.isHost = (data.players[0].id === state.playerId); // Simple check
+  state.isHost = (data.players[0].id === state.playerId);
 
-  // IMPORTANT : Récupérer la config de la roue si fournie
   if (data.wheelConfig) {
     wheelSegments = data.wheelConfig;
   }
 
-  // Cas Spécial Roulette Online
-  if (data.gameType === 'roulette' && state.rouletteMode === 'online') {
+  // === LOGIQUE ROULETTE ===
+  if (data.gameType === 'roulette') {
+     state.rouletteMode = 'online';
      document.getElementById('roulette-room-code').textContent = data.roomCode;
-     document.getElementById('roulette-slot-1-name').textContent = data.players[0] ? data.players[0].name : '...';
-     document.getElementById('roulette-slot-2-name').textContent = data.players[1] ? data.players[1].name : 'En attente...';
-     showScreen('rouletteOnlineLobby');
-     return;
-  }
+     
+     // 1. Mise à jour des Noms (Slots)
+     const p1 = data.players[0];
+     const p2 = data.players[1];
 
+     if (p1) {
+       state.roulettePlayer1 = p1.name;
+       document.getElementById('roulette-slot-1-name').textContent = p1.name;
+       document.getElementById('roulette-slot-1').classList.add('ready');
+     }
+     if (p2) {
+       state.roulettePlayer2 = p2.name;
+       document.getElementById('roulette-slot-2-name').textContent = p2.name;
+       document.getElementById('roulette-slot-2').classList.add('ready');
+     } else {
+       document.getElementById('roulette-slot-2-name').textContent = 'En attente...';
+       document.getElementById('roulette-slot-2').classList.remove('ready');
+     }
+
+     // 2. Gestion du Message d'attente et du Bouton Start
+     const waitingMsg = document.getElementById('roulette-waiting-message');
+     const startBtn = document.getElementById('roulette-online-start-btn');
+
+     if (data.players.length >= 2) {
+       // --- IL Y A 2 JOUEURS ---
+       if (state.isHost) {
+         // Je suis l'hôte : Je vois le bouton Start, pas de message
+         startBtn.classList.remove('hidden');
+         waitingMsg.classList.add('hidden');
+       } else {
+         // Je suis l'invité : Je ne vois pas le bouton, je vois le message d'attente hôte
+         startBtn.classList.add('hidden');
+         waitingMsg.textContent = "En attente de l'hôte pour démarrer la partie...";
+         waitingMsg.classList.remove('hidden');
+       }
+     } else {
+       // --- IL MANQUE UN JOUEUR ---
+       startBtn.classList.add('hidden');
+       waitingMsg.textContent = "En attente d'un adversaire...";
+       waitingMsg.classList.remove('hidden');
+     }
+
+     showScreen('rouletteOnlineLobby');
+     return; 
+  }
+  // ============================
+
+  // ... (Le reste du code pour HotSeat/Undercover reste inchangé)
   document.getElementById('display-room-code').textContent = data.roomCode;
-  
-  // UI Host vs Guest
   if (state.isHost) {
       document.getElementById('host-controls').classList.remove('hidden');
       document.getElementById('waiting-message').classList.add('hidden');
@@ -433,35 +473,53 @@ function handleRoomConnection(data) {
       document.getElementById('host-controls').classList.add('hidden');
       document.getElementById('waiting-message').classList.remove('hidden');
   }
-
-  // Update HotSeat options visibility
   if (state.gameType === 'hotseat' && state.isHost) {
       document.getElementById('hotseat-options').classList.remove('hidden');
   } else {
       document.getElementById('hotseat-options').classList.add('hidden');
   }
-
   updatePlayersList();
   updateRulesDisplay(data.gameType);
-  checkGameAvailability(); // <--- VERIFICATION IMMEDIATE
-  
-  if (data.gameType !== 'roulette') {
-      showScreen('lobby');
-  }
+  checkGameAvailability();
+  showScreen('lobby');
 }
 
 socket.on('playerJoined', ({ players }) => {
   state.players = players;
   updatePlayersList();
-  checkGameAvailability(); // <--- A CHAQUE NOUVEAU JOUEUR
+  checkGameAvailability();
   
-  // Update spécifique Lobby Roulette
-  if (state.gameType === 'roulette' && document.getElementById('roulette-online-lobby-screen').classList.contains('active')) {
+  // === LOGIQUE ROULETTE ===
+  if (state.gameType === 'roulette' && state.rouletteMode === 'online') {
+      const waitingMsg = document.getElementById('roulette-waiting-message');
+      const startBtn = document.getElementById('roulette-online-start-btn');
+      
+      // Mise à jour du Slot 2
       if (players[1]) {
+          state.roulettePlayer2 = players[1].name;
           document.getElementById('roulette-slot-2-name').textContent = players[1].name;
-          if(state.isHost) document.getElementById('roulette-online-start-btn').classList.remove('hidden');
+          document.getElementById('roulette-slot-2').classList.add('ready');
+          
+          // PARTIE COMPLÈTE (2 JOUEURS)
+          if(state.isHost) {
+            startBtn.classList.remove('hidden');
+            waitingMsg.classList.add('hidden');
+          } else {
+            startBtn.classList.add('hidden');
+            waitingMsg.textContent = "En attente de l'hôte pour démarrer la partie...";
+            waitingMsg.classList.remove('hidden');
+          }
+      } else {
+          // JOUEUR 2 PARTI
+          document.getElementById('roulette-slot-2-name').textContent = 'En attente...';
+          document.getElementById('roulette-slot-2').classList.remove('ready');
+          
+          startBtn.classList.add('hidden');
+          waitingMsg.textContent = "En attente d'un adversaire...";
+          waitingMsg.classList.remove('hidden');
       }
   }
+  // ============================
 });
 
 socket.on('playerLeft', ({ players }) => {
@@ -674,10 +732,24 @@ socket.on('mrWhiteGuess', () => {
 
 socket.on('undercoverNewRound', (data) => {
   document.getElementById('uc-round-number').textContent = data.roundNumber;
+  
+  document.getElementById('alive-count').textContent = data.players.length;
   document.getElementById('hints-given-list').innerHTML = '';
   document.getElementById('hint-done-btn').disabled = false;
+  
   updateUndercoverTurn(data.currentPlayerId);
   showScreen('undercoverGame');
+});
+
+socket.on('playerDisconnected', ({ playerName, players }) => {
+  state.players = players;
+  
+  if (state.gameType === 'undercover' && document.getElementById('undercover-game-screen').classList.contains('active')) {
+      const aliveCount = players.filter(p => p.isAlive).length;
+      document.getElementById('alive-count').textContent = aliveCount;
+  }
+  
+  showToast(`${playerName} a quitté la partie`, 'error');
 });
 
 socket.on('undercoverGameEnd', (data) => {

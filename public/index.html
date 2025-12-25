@@ -10,7 +10,7 @@
   <div class="container">
     <!-- ==================== ÉCRAN D'ACCUEIL ==================== -->
     <div id="home-screen" class="screen active">
-      <div class="logo">🎉</div>
+      <div class="logo" id="secret-trigger" style="cursor: pointer; user-select: none;">🎉</div>
       <h1>Jeux du Nouvel An</h1>
       <p class="subtitle">Choisissez votre jeu et amusez-vous !</p>
       
@@ -525,6 +525,14 @@
 
   <!-- Toast pour les notifications -->
   <div id="toast" class="toast hidden"></div>
+
+  <div id="video-overlay" class="hidden">
+    <button id="close-video-btn">✖</button>
+    <video id="secret-video" playsinline>
+      <source src="lol.mp4" type="video/mp4">
+      Ton navigateur ne supporte pas la vidéo.
+    </button>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="app.js"></script>

@@ -896,4 +896,56 @@ document.getElementById('start-game-btn').addEventListener('click', () => {
   socket.emit('startGame', settings);
 });
 
+// ==================== EASTER EGG ====================
+let eggClicks = 0;
+let eggTimer = null;
+
+const trigger = document.getElementById('secret-trigger');
+const overlay = document.getElementById('video-overlay');
+const video = document.getElementById('secret-video');
+const closeBtn = document.getElementById('close-video-btn');
+
+if (trigger && overlay && video) {
+  
+  trigger.addEventListener('click', () => {
+    eggClicks++;
+    
+    // Animation visuelle au clic (le logo grossit un peu)
+    trigger.style.transform = `scale(${1 + (eggClicks * 0.1)})`;
+    
+    // Reset du compteur si on arrête de cliquer pendant 500ms
+    clearTimeout(eggTimer);
+    eggTimer = setTimeout(() => {
+      eggClicks = 0;
+      trigger.style.transform = 'scale(1)'; // Retour taille normale
+    }, 500);
+
+    // DÉCLENCHEMENT (au 5ème clic)
+    if (eggClicks >= 5) {
+      launchEasterEgg();
+      eggClicks = 0;
+      trigger.style.transform = 'scale(1)';
+    }
+  });
+
+  // Fermer la vidéo
+  closeBtn.addEventListener('click', stopEasterEgg);
+  
+  // Fermer automatiquement à la fin de la vidéo
+  video.addEventListener('ended', stopEasterEgg);
+}
+
+function launchEasterEgg() {
+  overlay.classList.remove('hidden');
+  video.currentTime = 0; // Rembobiner au début
+  video.play().catch(e => console.log("Erreur lecture auto:", e));
+  showToast("🎉 SURPRISE !!! 🎉", "success");
+}
+
+function stopEasterEgg() {
+  overlay.classList.add('hidden');
+  video.pause();
+  video.currentTime = 0;
+}
+
 socket.on('error', ({ message }) => showToast(message, 'error'));

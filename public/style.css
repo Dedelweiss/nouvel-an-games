@@ -1468,6 +1468,49 @@ input[type="text"]::placeholder {
   animation: pulse 2s infinite;
 }
 
+/* public/style.css */
+
+/* L'écran noir par-dessus tout */
+#video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+  z-index: 9999; /* Au-dessus de tout */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.5s;
+}
+
+/* La vidéo elle-même */
+#secret-video {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 0 50px rgba(255, 255, 255, 0.2);
+}
+
+/* Le bouton pour fermer (au cas où on veut arrêter avant la fin) */
+#close-video-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 10000;
+  opacity: 0.7;
+}
+
+#close-video-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
 /* Style simple pour le switch checkbox */
 .switch { position: relative; display: inline-block; width: 40px; height: 24px; }
 .switch input { opacity: 0; width: 0; height: 0; }

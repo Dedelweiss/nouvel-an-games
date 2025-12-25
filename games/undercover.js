@@ -34,10 +34,6 @@ function initGame(room) {
   room.waitingForMrWhite = null;
 }
 
-// games/undercover.js
-
-// On garde les imports ...
-
 function startGame(io, room, settings = {}) {
   const playerIds = Array.from(room.players.keys());
   const shuffledIds = shuffleArray(playerIds);
@@ -98,14 +94,29 @@ function startGame(io, room, settings = {}) {
   room.votes.clear();
   room.eliminatedPlayers = [];
 
-  // Envoi aux joueurs
   room.players.forEach((player) => {
     const pSocket = io.sockets.sockets.get(player.socketId);
     if (pSocket) {
+      
+      let roleToSend = 'civil';
+
+      if (player.isMrWhite) {
+        roleToSend = 'mrwhite';
+      } else if (player.isUndercover) {
+        if (settings.revealUndercover) {
+          roleToSend = 'undercover';
+        } else {
+          roleToSend = 'civil';
+        }
+      } else {
+        roleToSend = 'civil';
+      }
+      // -------------------------------
+
       pSocket.emit('gameStarted', {
         gameType: 'undercover',
         yourWord: player.word,
-        yourRole: player.isMrWhite ? 'mrwhite' : (player.isUndercover ? 'undercover' : 'civil'),
+        yourRole: roleToSend,
         undercoverCount: undercoverCount,
         hasMrWhite: mrWhiteId !== null,
         players: formatPlayersArray(room.players),

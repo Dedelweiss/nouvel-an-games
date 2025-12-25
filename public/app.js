@@ -762,7 +762,7 @@ socket.on('undercoverElimination', (data) => {
   const display = document.getElementById('eliminated-player-display');
   const roleText = data.wasMrWhite ? 'Mr. White' : (data.wasUndercover ? 'Undercover' : 'Civil');
   const player = state.players.find(p => p.name === data.eliminatedPlayer);
-  
+
   if (player) {
     player.isAlive = false;
   }
@@ -884,13 +884,15 @@ document.getElementById('btn-more-uc')?.addEventListener('click', () => {
   }
 });
 
-// MODIFIER LE START GAME pour envoyer les réglages
 document.getElementById('start-game-btn').addEventListener('click', () => {
   const settings = {
-    questionMode: state.questionMode, // pour HotSeat
-    undercoverCount: desiredUcCount,  // Nouveau
-    includeMrWhite: document.getElementById('mr-white-check').checked // Nouveau
+    questionMode: state.questionMode,
+    undercoverCount: typeof desiredUcCount !== 'undefined' ? desiredUcCount : 1,
+    includeMrWhite: document.getElementById('mr-white-check')?.checked || false,
+    
+    revealUndercover: document.getElementById('reveal-uc-check')?.checked || false
   };
+  
   socket.emit('startGame', settings);
 });
 

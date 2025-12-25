@@ -593,6 +593,8 @@ socket.on('gameStarted', (data) => {
     document.getElementById('uc-round-number').textContent = '1';
     document.getElementById('alive-count').textContent = data.players.length;
     document.getElementById('hints-given-list').innerHTML = '';
+    document.getElementById('user-eliminated-banner').classList.add('hidden');
+    document.getElementById('undercover-game-screen').classList.remove('eliminated-mode');
     
     // Check turn
     updateUndercoverTurn(data.currentPlayerId);
@@ -696,13 +698,22 @@ socket.on('hintGiven', (data) => {
   updateUndercoverTurn(data.nextPlayerId);
 });
 
+// public/app.js
+
 socket.on('undercoverVotePhase', ({ players }) => {
   state.hasVoted = false;
   document.getElementById('uc-votes-count').textContent = '0';
-  document.getElementById('uc-total-players').textContent = players.length;
+  document.getElementById('uc-total-players').textContent = players.length; // Nombre de votants vivants
   document.getElementById('uc-voted-message').classList.add('hidden');
   
+  // 1. VÉRIFICATION : Suis-je vivant ?
+  // On regarde si mon ID est présent dans la liste des joueurs vivants envoyée par le serveur
+  const amIAlive = players.some(p => p.id === state.playerId);
+
   const grid = document.getElementById('uc-players-vote-grid');
+  const voteInstruction = document.querySelector('.vote-instruction');
+  
+  // Génération de la grille (inchangée)
   grid.innerHTML = players.map((p, i) => `
     <div class="player-card" data-id="${p.id}">
       <div class="player-avatar">${getAvatar(i)}</div>
@@ -710,15 +721,33 @@ socket.on('undercoverVotePhase', ({ players }) => {
     </div>
   `).join('');
 
-  grid.querySelectorAll('.player-card').forEach(card => {
-    card.addEventListener('click', () => {
-      if (state.hasVoted) return;
-      state.hasVoted = true;
-      socket.emit('vote', card.dataset.id);
-      card.classList.add('selected');
-      document.getElementById('uc-voted-message').classList.remove('hidden');
+  // 2. LOGIQUE SPECTATEUR
+  if (!amIAlive) {
+    // Si je suis mort :
+    grid.classList.add('vote-disabled'); // On grise tout
+    voteInstruction.textContent = "🚫 Tu es éliminé, tu ne peux plus voter !";
+    voteInstruction.classList.add('spectator-message');
+  } else {
+    // Si je suis vivant :
+    grid.classList.remove('vote-disabled');
+    voteInstruction.textContent = "Votez pour la personne que vous soupçonnez !";
+    voteInstruction.classList.remove('spectator-message');
+
+    // On n'ajoute les écouteurs de clic QUE si je suis vivant
+    grid.querySelectorAll('.player-card').forEach(card => {
+      card.addEventListener('click', () => {
+        if (state.hasVoted) return;
+        state.hasVoted = true;
+        socket.emit('vote', card.dataset.id);
+        card.classList.add('selected');
+        // Griser les autres pour feedback visuel
+        grid.querySelectorAll('.player-card').forEach(c => {
+            if(c !== card) c.style.opacity = '0.5';
+        });
+        document.getElementById('uc-voted-message').classList.remove('hidden');
+      });
     });
-  });
+  }
   
   showScreen('undercoverVote');
 });
@@ -727,10 +756,33 @@ socket.on('undercoverVoteReceived', ({ totalVotes }) => {
   document.getElementById('uc-votes-count').textContent = totalVotes;
 });
 
+// public/app.js
+
 socket.on('undercoverElimination', (data) => {
   const display = document.getElementById('eliminated-player-display');
   const roleText = data.wasMrWhite ? 'Mr. White' : (data.wasUndercover ? 'Undercover' : 'Civil');
+  const player = state.players.find(p => p.name === data.eliminatedPlayer);
+  
+  if (player) {
+    player.isAlive = false;
+  }
+  
   display.innerHTML = `<div class="eliminated-name">${data.eliminatedPlayer}</div><div>était ${roleText}</div>`;
+  
+  if (data.eliminatedPlayer === state.playerName) {
+    document.getElementById('user-eliminated-banner').classList.remove('hidden');
+    
+    document.getElementById('undercover-game-screen').classList.add('eliminated-mode');
+    
+    const hintBtn = document.getElementById('hint-done-btn');
+    if (hintBtn) {
+        hintBtn.disabled = true;
+        hintBtn.textContent = '💀 Tu es mort';
+    }
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    showToast("💀 Tu as été éliminé de la partie !", "error");
+  }
+
   showScreen('undercoverElimination');
 });
 
@@ -799,6 +851,8 @@ socket.on('gameRestarted', ({ players }) => {
   if (list) list.innerHTML = ''; // <--- C'est la ligne qui manquait !
   
   document.getElementById('questions-submitted-count').textContent = '0';
+  document.getElementById('user-eliminated-banner')?.classList.add('hidden');
+  document.getElementById('undercover-game-screen')?.classList.remove('eliminated-mode');
 
   // Mise à jour classique
   updatePlayersList();

@@ -2,12 +2,6 @@
 const { hotSeatQuestions } = require('../utils/data');
 const { shuffleArray, formatPlayersArray } = require('../utils/helpers');
 
-function getRandomQuestions(count, exclude = []) {
-  const available = hotSeatQuestions.filter(q => !exclude.includes(q));
-  const shuffled = shuffleArray(available);
-  return shuffled.slice(0, count);
-}
-
 function initGame(room) {
   room.currentQuestionIndex = 0;
   room.questions = shuffleArray(hotSeatQuestions);
@@ -17,15 +11,12 @@ function initGame(room) {
   room.results = [];
 }
 
-// --- NOUVELLE FONCTION UTILITAIRE POUR STABILISER LE COMPTEUR ---
 function calculateTotal(room) {
   if (room.questionMode === 'custom') {
     return room.questions.length;
   }
-  
   return Math.min(room.questions.length, room.players.size * 5);
 }
-// ---------------------------------------------------------------
 
 function submitQuestions(io, socket, room, questions) {
   const player = room.players.get(socket.odId);
@@ -47,11 +38,9 @@ function submitQuestions(io, socket, room, questions) {
   });
 
   if (room.submittedPlayers.size === room.players.size) {
-    // Si aucune question n'a été proposée au total, on met des questions par défaut
     if (room.customQuestions.length === 0) {
         room.customQuestions = getRandomQuestions(room.players.size * 3);
     }
-    
     room.questions = shuffleArray(room.customQuestions);
     room.gameStarted = true;
     io.to(room.code).emit('allQuestionsCollected', { totalQuestions: room.questions.length });
@@ -60,6 +49,10 @@ function submitQuestions(io, socket, room, questions) {
       startGame(io, room);
     }, 1500);
   }
+}
+
+function getRandomQuestions(count) {
+  return hotSeatQuestions.slice(0, count);
 }
 
 function startGame(io, room) {
@@ -71,7 +64,6 @@ function startGame(io, room) {
       room.questions = shuffleArray(hotSeatQuestions);
   }
 
-  // Utilisation du calcul unifié
   const totalQuestions = calculateTotal(room);
 
   io.to(room.code).emit('gameStarted', {
@@ -84,16 +76,26 @@ function startGame(io, room) {
 }
 
 function handleVote(io, socket, room, votedPlayerId) {
+  console.log(`[DEBUG] Vote reçu de ${socket.odId} (${room.players.get(socket.odId)?.name})`);
+
   room.votes.set(socket.odId, votedPlayerId);
 
+  const totalPlayers = room.players.size;
+  const currentVotes = room.votes.size;
+
+  console.log(`[DEBUG] État des votes : ${currentVotes} votes / ${totalPlayers} joueurs`);
+  console.log(`[DEBUG] Votants :`, Array.from(room.votes.keys()));
+  console.log(`[DEBUG] Joueurs :`, Array.from(room.players.keys()));
+
   io.to(room.code).emit('voteReceived', {
-    odId: socket.odId,
-    totalVotes: room.votes.size,
-    totalPlayers: room.players.size
+    totalVotes: currentVotes
   });
 
-  if (room.votes.size === room.players.size) {
+  if (currentVotes >= totalPlayers) {
+    console.log("[DEBUG] ✅ Tous les votes sont là ! Calcul des résultats...");
     processResults(io, room);
+  } else {
+    console.log(`[DEBUG] ⏳ En attente... Manque ${totalPlayers - currentVotes} votes.`);
   }
 }
 
@@ -117,12 +119,14 @@ function processResults(io, room) {
 
   const winnerNames = winners.map(id => room.players.get(id)?.name || 'Inconnu');
   const voteDetails = [];
-  room.votes.forEach((votedId, odId) => {
-    voteDetails.push({
-      voter: room.players.get(odId)?.name,
-      votedFor: room.players.get(votedId)?.name
-    });
+  
+  room.votes.forEach((votedId, voterId) => {
+    const voterName = room.players.get(voterId)?.name || 'Inconnu';
+    const votedName = room.players.get(votedId)?.name || 'Inconnu';
+    voteDetails.push({ voter: voterName, votedFor: votedName });
   });
+
+  const isUnanimous = (maxVotes === room.players.size) && (room.players.size > 1);
 
   room.results.push({
     question: room.questions[room.currentQuestionIndex],
@@ -131,14 +135,14 @@ function processResults(io, room) {
     details: voteDetails
   });
 
-  // Utilisation du calcul unifié (IMPORTANT pour la condition de fin)
   const totalQuestions = calculateTotal(room);
 
   io.to(room.code).emit('questionResults', {
     winners: winnerNames,
     votes: maxVotes,
     voteDetails,
-    isLastQuestion: room.currentQuestionIndex >= totalQuestions - 1
+    isLastQuestion: room.currentQuestionIndex >= totalQuestions - 1,
+    unanimous: isUnanimous
   });
 }
 
@@ -146,7 +150,6 @@ function nextQuestion(io, room) {
   room.currentQuestionIndex++;
   room.votes.clear();
 
-  // Utilisation du calcul unifié
   const totalQuestions = calculateTotal(room);
 
   if (room.currentQuestionIndex >= totalQuestions) {

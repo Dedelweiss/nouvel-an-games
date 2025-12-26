@@ -6,16 +6,14 @@ let state = {
   playerName: null,
   roomCode: null,
   isHost: false,
-  gameType: 'hotseat', // hotseat, undercover, roulette
+  gameType: 'hotseat',
   questionMode: 'default',
   players: [],
   hasVoted: false,
   hasSubmittedQuestions: false,
-  // Undercover specific
   myWord: null,
   myRole: null,
-  // Roulette specific
-  rouletteMode: null, // 'local' ou 'online'
+  rouletteMode: null,
   roulettePlayer1: null,
   roulettePlayer2: null,
   rouletteScores: { player1: 0, player2: 0 },
@@ -26,7 +24,6 @@ let state = {
 
 const avatars = ['😀', '😎', '🥳', '🤩', '😺', '🦊', '🐻', '🐼', '🐨', '🦁', '🐸', '🐙', '🦋', '🐢', '🦄', '🐳', '🦜', '🦔', '🐲', '🎃'];
 
-// Segments de la roue (identiques au backend pour la cohérence visuelle)
 let wheelSegments = [
   { color: '#e74c3c', name: '{player1} prend cher', count: 1, target: 'player1', gages: ["{player1} boit un verre !", "{player1} cul sec !"] },
   { color: '#f39c12', name: '{player2} prend cher', count: 1, target: 'player2', gages: ["{player2} boit un verre !", "{player2} cul sec !"] },
@@ -46,8 +43,8 @@ const screens = {
   rouletteGame: document.getElementById('roulette-game-screen'),
   lobby: document.getElementById('lobby-screen'),
   questionsSubmit: document.getElementById('questions-submit-screen'),
-  game: document.getElementById('game-screen'), // Hot Seat Game
-  results: document.getElementById('results-screen'), // Hot Seat Results
+  game: document.getElementById('game-screen'),
+  results: document.getElementById('results-screen'),
   end: document.getElementById('end-screen'),
   undercoverRole: document.getElementById('undercover-role-screen'),
   undercoverGame: document.getElementById('undercover-game-screen'),
@@ -120,10 +117,9 @@ function checkGameAvailability() {
   if (undercoverOption) {
     if (playerCount < 4) {
       undercoverOption.style.opacity = '0.5';
-      undercoverOption.style.pointerEvents = 'none'; // Rend in-cliquable côté client
-      // Si on est déjà sur Undercover (bug visuel), on force l'affichage Hot Seat
+      undercoverOption.style.pointerEvents = 'none';
       if (state.gameType === 'undercover') {
-         // Optionnel: dire au client de re-sélectionner Hot Seat visuellement
+          state.gameType = 'hotseat';
       }
     } else {
       undercoverOption.style.opacity = '1';
@@ -134,7 +130,6 @@ function checkGameAvailability() {
 
 // ==================== GESTION DES ÉVÉNEMENTS DOM ====================
 
-// --- Navigation & Setup ---
 document.querySelectorAll('.game-option').forEach(option => {
   option.addEventListener('click', () => {
     document.querySelectorAll('.game-option').forEach(opt => opt.classList.remove('selected'));
@@ -146,12 +141,10 @@ document.querySelectorAll('.game-option').forEach(option => {
 document.querySelectorAll('.game-option-small').forEach(option => {
   option.addEventListener('click', () => {
     const val = option.querySelector('input').value;
-    // On ne change pas state.gameType ici, on attend la confirmation du serveur
     socket.emit('changeGameType', val);
   });
 });
 
-// Création partie
 document.getElementById('create-room-btn').addEventListener('click', () => {
   const name = document.getElementById('player-name').value.trim();
   if (!name) return showToast('Entre ton prénom !', 'error');
@@ -164,7 +157,6 @@ document.getElementById('create-room-btn').addEventListener('click', () => {
   }
 });
 
-// Rejoindre partie
 document.getElementById('join-room-btn').addEventListener('click', () => {
   document.getElementById('join-form').classList.toggle('hidden');
 });
@@ -178,7 +170,6 @@ document.getElementById('confirm-join-btn').addEventListener('click', () => {
   socket.emit('joinRoom', { roomCode: code, playerName: name });
 });
 
-// Lobby
 document.getElementById('copy-code-btn').addEventListener('click', () => {
   navigator.clipboard.writeText(state.roomCode);
   showToast('Code copié !', 'success');
@@ -204,15 +195,12 @@ document.getElementById('submit-questions-btn')?.addEventListener('click', () =>
   inputs.forEach(input => {
     const val = input.value.trim();
     if (val) {
-        // Ajoute le préfixe si l'utilisateur ne l'a pas mis (optionnel mais sympa)
-        // const fullQ = val.toLowerCase().startsWith('qui') ? val : `Qui est le plus susceptible de ${val}`;
         questions.push(val);
     }
   });
   
   socket.emit('submitQuestions', { questions });
   
-  // UI Feedback
   const btn = document.getElementById('submit-questions-btn');
   btn.disabled = true;
   btn.textContent = '✅ Questions envoyées !';
@@ -222,7 +210,6 @@ document.getElementById('next-question-btn').addEventListener('click', () => {
   socket.emit('nextQuestion');
 });
 
-// --- Undercover ---
 document.getElementById('ready-btn')?.addEventListener('click', () => {
   showScreen('undercoverGame');
 });
@@ -237,7 +224,6 @@ document.getElementById('mrwhite-guess-btn')?.addEventListener('click', () => {
   if (guess) socket.emit('mrWhiteGuessWord', guess);
 });
 
-// --- Navigation Globale ---
 document.getElementById('home-btn').addEventListener('click', () => location.reload());
 document.getElementById('restart-btn').addEventListener('click', () => socket.emit('restartGame'));
 document.getElementById('uc-home-btn')?.addEventListener('click', () => location.reload());
@@ -245,7 +231,6 @@ document.getElementById('uc-restart-btn')?.addEventListener('click', () => socke
 
 // ==================== LOGIQUE ROULETTE ====================
 
-// Setup Local
 document.getElementById('roulette-back-btn')?.addEventListener('click', () => {
   showScreen('home');
 });
@@ -271,7 +256,6 @@ document.getElementById('roulette-local-start-btn')?.addEventListener('click', (
   startRouletteGame();
 });
 
-// Setup Online
 document.getElementById('roulette-online-btn')?.addEventListener('click', () => {
   state.rouletteMode = 'online';
   socket.emit('createRoom', { playerName: state.playerName, gameType: 'roulette' });
@@ -284,31 +268,25 @@ document.getElementById('roulette-copy-code-btn')?.addEventListener('click', () 
   showToast('Code copié !', 'success');
 });
 
-// Jeu
 document.getElementById('spin-wheel-btn')?.addEventListener('click', () => {
   const btn = document.getElementById('spin-wheel-btn');
   btn.disabled = true;
 
-  // CAS 1 : MODE LOCAL (Le navigateur calcule tout seul)
   if (state.rouletteMode === 'local') {
-    // 1. Choisir au hasard
     const segmentIndex = Math.floor(Math.random() * wheelSegments.length);
     const segment = wheelSegments[segmentIndex];
     const gage = segment.gages[Math.floor(Math.random() * segment.gages.length)];
 
-    // 2. Lancer l'animation tout de suite
     triggerWheelAnimation({
       segmentIndex: segmentIndex,
       segment: segment,
       gage: gage
     });
   } 
-  // CAS 2 : MODE ONLINE (On demande au serveur)
   else {
     socket.emit('requestSpin');
   }
 });
-// public/app.js
 
 document.getElementById('spin-again-btn')?.addEventListener('click', () => {
   const btn = document.getElementById('spin-again-btn');
@@ -316,15 +294,12 @@ document.getElementById('spin-again-btn')?.addEventListener('click', () => {
   btn.textContent = 'Attente...';
   
   if (state.rouletteMode === 'local') {
-    // Reset local immédiat
     resetRouletteUI();
   } else {
-    // Demande au serveur
     socket.emit('requestNextTurn');
   }
 });
 
-// Créer une fonction pour le reset (pour éviter la duplication)
 function resetRouletteUI() {
   document.getElementById('roulette-result').classList.add('hidden');
   document.getElementById('roulette-actions').classList.add('hidden');
@@ -341,26 +316,21 @@ function resetRouletteUI() {
   }
 }
 
-// Modifier l'écouteur du serveur pour utiliser cette fonction
 socket.on('rouletteResetUI', () => {
   resetRouletteUI();
 });
 document.getElementById('roulette-quit-btn')?.addEventListener('click', () => location.reload());
 
 function startRouletteGame() {
-  // Update UI noms
   document.getElementById('roulette-p1-name').textContent = state.roulettePlayer1;
   document.getElementById('roulette-p2-name').textContent = state.roulettePlayer2;
   document.getElementById('roulette-p1-score').textContent = '0 verre';
   document.getElementById('roulette-p2-score').textContent = '0 verre';
-
-  // Reset UI
   document.getElementById('roulette-result').classList.add('hidden');
   document.getElementById('roulette-actions').classList.add('hidden');
   document.getElementById('spin-wheel-btn').classList.remove('hidden');
   document.getElementById('spin-wheel-btn').disabled = false;
 
-  // Légende
   const legend = document.getElementById('wheel-legend');
   legend.innerHTML = wheelSegments.map(s => `
     <div class="legend-item">
@@ -374,10 +344,6 @@ function startRouletteGame() {
 
 // ==================== LOGIQUE ROULETTE (SYNC) ====================
 
-// Cet événement est reçu par TOUS les joueurs en même temps
-// public/app.js
-
-// Fonction qui fait tourner la roue (Commune Local et Online)
 function triggerWheelAnimation(data) {
   playSound('spin');
 
@@ -404,23 +370,18 @@ function triggerWheelAnimation(data) {
   }, 4000);
 }
 
-// Réception du serveur (Mode Online)
 socket.on('rouletteSpinStart', (data) => {
   triggerWheelAnimation(data);
 });
 
 socket.on('rouletteResetUI', () => {
-  // 1. Cacher les résultats
   document.getElementById('roulette-result').classList.add('hidden');
   document.getElementById('roulette-actions').classList.add('hidden');
-  
-  // 2. Réafficher le bouton Tourner
   const spinBtn = document.getElementById('spin-wheel-btn');
   spinBtn.classList.remove('hidden');
   spinBtn.disabled = false;
   spinBtn.textContent = '🎰 Tourner la roue !';
   
-  // 3. Réinitialiser le bouton Rejouer (pour la prochaine fois)
   const replayBtn = document.getElementById('spin-again-btn');
   if (replayBtn) {
     replayBtn.disabled = false;
@@ -433,14 +394,12 @@ function showRouletteResult(segment, gage) {
   const resultText = document.getElementById('roulette-result-text');
   const resultColor = document.getElementById('roulette-result-color');
   
-  // Mise à jour scores
   if (segment.target.includes('player1') || segment.target === 'both') state.rouletteScores.player1 += segment.count;
   if (segment.target.includes('player2') || segment.target === 'both') state.rouletteScores.player2 += segment.count;
   
   document.getElementById('roulette-p1-score').textContent = `${state.rouletteScores.player1} verres`;
   document.getElementById('roulette-p2-score').textContent = `${state.rouletteScores.player2} verres`;
 
-  // Affichage
   resultColor.style.background = segment.color;
   resultColor.textContent = segment.name.replace('{player1}', state.roulettePlayer1).replace('{player2}', state.roulettePlayer2);
   
@@ -455,7 +414,6 @@ function showRouletteResult(segment, gage) {
 
 // ==================== SOCKET EVENTS ====================
 
-// --- Room Events ---
 socket.on('roomCreated', (data) => {
   handleRoomConnection(data);
 });
@@ -467,7 +425,7 @@ socket.on('roomJoined', (data) => {
 function generateQRCode(elementId, roomCode) {
   const container = document.getElementById(elementId);
   if (container) {
-    container.innerHTML = ""; // On vide l'ancien
+    container.innerHTML = "";
     const joinUrl = `${window.location.origin}?code=${roomCode}`;
     
     new QRCode(container, {
@@ -502,7 +460,6 @@ function handleRoomConnection(data) {
      state.rouletteMode = 'online';
      document.getElementById('roulette-room-code').textContent = data.roomCode;
      
-     // 1. Mise à jour des Noms (Slots)
      const p1 = data.players[0];
      const p2 = data.players[1];
 
@@ -520,24 +477,19 @@ function handleRoomConnection(data) {
        document.getElementById('roulette-slot-2').classList.remove('ready');
      }
 
-     // 2. Gestion du Message d'attente et du Bouton Start
      const waitingMsg = document.getElementById('roulette-waiting-message');
      const startBtn = document.getElementById('roulette-online-start-btn');
 
      if (data.players.length >= 2) {
-       // --- IL Y A 2 JOUEURS ---
        if (state.isHost) {
-         // Je suis l'hôte : Je vois le bouton Start, pas de message
          startBtn.classList.remove('hidden');
          waitingMsg.classList.add('hidden');
        } else {
-         // Je suis l'invité : Je ne vois pas le bouton, je vois le message d'attente hôte
          startBtn.classList.add('hidden');
          waitingMsg.textContent = "En attente de l'hôte pour démarrer la partie...";
          waitingMsg.classList.remove('hidden');
        }
      } else {
-       // --- IL MANQUE UN JOUEUR ---
        startBtn.classList.add('hidden');
        waitingMsg.textContent = "En attente d'un adversaire...";
        waitingMsg.classList.remove('hidden');
@@ -547,9 +499,7 @@ function handleRoomConnection(data) {
      showScreen('rouletteOnlineLobby');
      return; 
   }
-  // ============================
 
-  // ... (Le reste du code pour HotSeat/Undercover reste inchangé)
   document.getElementById('display-room-code').textContent = data.roomCode;
   if (state.isHost) {
       document.getElementById('host-controls').classList.remove('hidden');
@@ -577,18 +527,15 @@ socket.on('playerJoined', ({ players }) => {
   updatePlayersList();
   checkGameAvailability();
   playSound('join');
-  // === LOGIQUE ROULETTE ===
   if (state.gameType === 'roulette' && state.rouletteMode === 'online') {
       const waitingMsg = document.getElementById('roulette-waiting-message');
       const startBtn = document.getElementById('roulette-online-start-btn');
       
-      // Mise à jour du Slot 2
       if (players[1]) {
           state.roulettePlayer2 = players[1].name;
           document.getElementById('roulette-slot-2-name').textContent = players[1].name;
           document.getElementById('roulette-slot-2').classList.add('ready');
           
-          // PARTIE COMPLÈTE (2 JOUEURS)
           if(state.isHost) {
             startBtn.classList.remove('hidden');
             waitingMsg.classList.add('hidden');
@@ -598,7 +545,6 @@ socket.on('playerJoined', ({ players }) => {
             waitingMsg.classList.remove('hidden');
           }
       } else {
-          // JOUEUR 2 PARTI
           document.getElementById('roulette-slot-2-name').textContent = 'En attente...';
           document.getElementById('roulette-slot-2').classList.remove('ready');
           
@@ -607,7 +553,6 @@ socket.on('playerJoined', ({ players }) => {
           waitingMsg.classList.remove('hidden');
       }
   }
-  // ============================
 });
 
 socket.on('playerLeft', ({ players }) => {
@@ -661,36 +606,30 @@ socket.on('gameStarted', (data) => {
     }
     startRouletteGame();
   } else if (data.gameType === 'undercover') {
-    // Setup Undercover UI
     state.myWord = data.yourWord;
     state.myRole = data.yourRole;
     document.getElementById('secret-word').textContent = data.yourWord;
     document.getElementById('reminder-word').textContent = data.yourWord;
     
-    // UI Rôle
     const roleCard = document.getElementById('role-card');
     roleCard.className = `role-card ${data.yourRole}`;
     document.getElementById('role-name').textContent = data.yourRole === 'mrwhite' ? 'Mr. White' : (data.yourRole === 'undercover' ? 'Undercover' : 'Civil');
     
-    // Init infos tour
     document.getElementById('uc-round-number').textContent = '1';
     document.getElementById('alive-count').textContent = data.players.length;
     document.getElementById('hints-given-list').innerHTML = '';
     document.getElementById('user-eliminated-banner').classList.add('hidden');
     document.getElementById('undercover-game-screen').classList.remove('eliminated-mode');
     
-    // Check turn
     updateUndercoverTurn(data.currentPlayerId);
     showScreen('undercoverRole');
 
   } else {
-    // Hot Seat
     setupHotSeatQuestion(data);
     showScreen('game');
   }
 });
 
-// --- Hot Seat Logic ---
 socket.on('collectQuestions', ({ totalPlayers }) => {
   document.getElementById('questions-submitted-count').textContent = '0';
   document.getElementById('questions-total-players').textContent = totalPlayers;
@@ -739,12 +678,20 @@ socket.on('voteReceived', ({ totalVotes }) => {
   document.getElementById('votes-count').textContent = totalVotes;
 });
 
-socket.on('questionResults', ({ winners, votes, voteDetails, isLastQuestion }) => {
+socket.on('questionResults', ({ winners, votes, voteDetails, isLastQuestion, unanimous }) => {
   document.getElementById('winner-display').innerHTML = winners.map(w => `<div>🏆 ${w}</div>`).join('');
   document.getElementById('vote-details').innerHTML = voteDetails.map(v => `<div>${v.voter} ➔ ${v.votedFor}</div>`).join('');
-  launchConfetti();
-  playSound('win');
-  vibrate([100, 50, 100]);
+  if (unanimous) {
+    showToast("🔥 INCROYABLE ! UNANIMITÉ ! 🔥", "success");
+    playSound('win'); 
+    launchConfetti();
+    setTimeout(launchConfetti, 500);
+    vibrate([100, 50, 100, 50, 500]);
+  } else {
+    launchConfetti();
+    playSound('win');
+    vibrate([100, 50, 100]);
+  }
   
   const btn = document.getElementById('next-question-btn');
   btn.textContent = isLastQuestion ? 'Fin de partie' : 'Suivante';
@@ -766,7 +713,6 @@ socket.on('gameEnded', ({ results }) => {
   showScreen('end');
 });
 
-// --- Undercover Logic ---
 function updateUndercoverTurn(playerId) {
   const isMe = playerId === state.playerId;
   const player = state.players.find(p => p.id === playerId);
@@ -784,22 +730,17 @@ socket.on('hintGiven', (data) => {
   updateUndercoverTurn(data.nextPlayerId);
 });
 
-// public/app.js
-
 socket.on('undercoverVotePhase', ({ players }) => {
   state.hasVoted = false;
   document.getElementById('uc-votes-count').textContent = '0';
-  document.getElementById('uc-total-players').textContent = players.length; // Nombre de votants vivants
+  document.getElementById('uc-total-players').textContent = players.length;
   document.getElementById('uc-voted-message').classList.add('hidden');
   
-  // 1. VÉRIFICATION : Suis-je vivant ?
-  // On regarde si mon ID est présent dans la liste des joueurs vivants envoyée par le serveur
   const amIAlive = players.some(p => p.id === state.playerId);
 
   const grid = document.getElementById('uc-players-vote-grid');
   const voteInstruction = document.querySelector('.vote-instruction');
   
-  // Génération de la grille (inchangée)
   grid.innerHTML = players.map((p, i) => `
     <div class="player-card" data-id="${p.id}">
       <div class="player-avatar">${getAvatar(i)}</div>
@@ -807,26 +748,21 @@ socket.on('undercoverVotePhase', ({ players }) => {
     </div>
   `).join('');
 
-  // 2. LOGIQUE SPECTATEUR
   if (!amIAlive) {
-    // Si je suis mort :
-    grid.classList.add('vote-disabled'); // On grise tout
+    grid.classList.add('vote-disabled');
     voteInstruction.textContent = "🚫 Tu es éliminé, tu ne peux plus voter !";
     voteInstruction.classList.add('spectator-message');
   } else {
-    // Si je suis vivant :
     grid.classList.remove('vote-disabled');
     voteInstruction.textContent = "Votez pour la personne que vous soupçonnez !";
     voteInstruction.classList.remove('spectator-message');
 
-    // On n'ajoute les écouteurs de clic QUE si je suis vivant
     grid.querySelectorAll('.player-card').forEach(card => {
       card.addEventListener('click', () => {
         if (state.hasVoted) return;
         state.hasVoted = true;
         socket.emit('vote', card.dataset.id);
         card.classList.add('selected');
-        // Griser les autres pour feedback visuel
         grid.querySelectorAll('.player-card').forEach(c => {
             if(c !== card) c.style.opacity = '0.5';
         });
@@ -841,8 +777,6 @@ socket.on('undercoverVotePhase', ({ players }) => {
 socket.on('undercoverVoteReceived', ({ totalVotes }) => {
   document.getElementById('uc-votes-count').textContent = totalVotes;
 });
-
-// public/app.js
 
 socket.on('undercoverElimination', (data) => {
   const display = document.getElementById('eliminated-player-display');
@@ -927,33 +861,26 @@ socket.on('gameRestarted', ({ players }) => {
   state.hasVoted = false;
   state.hasSubmittedQuestions = false;
   
-  // --- CORRECTION 1 : Réinitialiser le formulaire de questions ---
   const submitBtn = document.getElementById('submit-questions-btn');
   if(submitBtn) {
     submitBtn.disabled = false;
     submitBtn.textContent = '📤 Valider mes 3 questions';
   }
   
-  // Vider les champs de texte
   document.querySelectorAll('.custom-q-input').forEach(input => input.value = '');
 
-  // --- CORRECTION 2 : Vider la liste des joueurs qui ont validé ---
   const list = document.getElementById('submitted-players-list');
-  if (list) list.innerHTML = ''; // <--- C'est la ligne qui manquait !
+  if (list) list.innerHTML = '';
   
   document.getElementById('questions-submitted-count').textContent = '0';
   document.getElementById('user-eliminated-banner')?.classList.add('hidden');
   document.getElementById('undercover-game-screen')?.classList.remove('eliminated-mode');
 
-  // Mise à jour classique
   updatePlayersList();
   showScreen('lobby');
   showToast("🔄 Une nouvelle partie va commencer !", "success");
 });
 
-// public/app.js
-
-// Gestion du nombre d'Undercovers
 let desiredUcCount = 1;
 
 document.getElementById('btn-less-uc')?.addEventListener('click', () => {
@@ -964,7 +891,6 @@ document.getElementById('btn-less-uc')?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-more-uc')?.addEventListener('click', () => {
-  // Règle : Max la moitié des joueurs moins 1 (pour laisser de la place aux civils)
   const maxUc = Math.max(1, Math.floor((state.players.length - 1) / 2));
   
   if (desiredUcCount < maxUc) {
@@ -1000,18 +926,14 @@ if (trigger && overlay && video) {
   
   trigger.addEventListener('click', () => {
     eggClicks++;
-    
-    // Animation visuelle au clic (le logo grossit un peu)
     trigger.style.transform = `scale(${1 + (eggClicks * 0.1)})`;
     
-    // Reset du compteur si on arrête de cliquer pendant 500ms
     clearTimeout(eggTimer);
     eggTimer = setTimeout(() => {
       eggClicks = 0;
-      trigger.style.transform = 'scale(1)'; // Retour taille normale
+      trigger.style.transform = 'scale(1)';
     }, 500);
 
-    // DÉCLENCHEMENT (au 5ème clic)
     if (eggClicks >= 5) {
       launchEasterEgg();
       eggClicks = 0;
@@ -1019,16 +941,13 @@ if (trigger && overlay && video) {
     }
   });
 
-  // Fermer la vidéo
-  closeBtn.addEventListener('click', stopEasterEgg);
-  
-  // Fermer automatiquement à la fin de la vidéo
+  closeBtn.addEventListener('click', stopEasterEgg);  
   video.addEventListener('ended', stopEasterEgg);
 }
 
 function launchEasterEgg() {
   overlay.classList.remove('hidden');
-  video.currentTime = 0; // Rembobiner au début
+  video.currentTime = 0;
   video.play().catch(e => console.log("Erreur lecture auto:", e));
   showToast("🎉 SURPRISE !!! 🎉", "success");
 }
@@ -1045,7 +964,7 @@ const audioFiles = {
   join: new Audio('/sounds/pop.mp3'),
   win: new Audio('/sounds/win.mp3'),
   eliminated: new Audio('/sounds/buzz.mp3'),
-  spin: new Audio('/sounds/spin.mp3') // Un son de "tic-tic-tic"
+  spin: new Audio('/sounds/spin.mp3')
 };
 
 function playSound(name) {
@@ -1058,7 +977,7 @@ function playSound(name) {
 
 function vibrate(pattern) {
   if (navigator.vibrate) {
-    navigator.vibrate(pattern); // ex: [100, 50, 100]
+    navigator.vibrate(pattern);
   }
 }
 

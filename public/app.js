@@ -75,14 +75,19 @@ function getAvatar(index) {
 
 function updateRulesDisplay(gameType) {
   const rulesContent = document.getElementById('rules-content');
+  const currentGame = document.getElementById('current-game-infos');
   if (gameType === 'undercover') {
     rulesContent.innerHTML = `
       <p>🕵️ <strong>Undercover</strong></p>
       <ul><li>Chaque joueur reçoit un mot secret.</li><li>Les Undercovers ont un mot différent.</li><li>Démasquez l'imposteur !</li></ul>`;
+    currentGame.querySelector('#current-game-icon').textContent = '🕵️'
+    currentGame.querySelector('#current-game-name').textContent = 'Undercover';
   } else if (gameType === 'hotseat') {
     rulesContent.innerHTML = `
       <p>🔥 <strong>Hot Seat</strong></p>
       <ul><li>Une question s'affiche.</li><li>Votez pour la personne qui correspond le plus.</li><li>Découvrez ce que vos amis pensent de vous !</li></ul>`;
+    currentGame.querySelector('#current-game-icon').textContent = '🔥';
+    currentGame.querySelector('#current-game-name').textContent = 'Hot Seat';
   }
 }
 
@@ -315,7 +320,7 @@ function startRouletteGame() {
 
 // Cet événement est reçu par TOUS les joueurs en même temps
 socket.on('rouletteSpinStart', (data) => {
-  // SECURITE : Si wheelSegments est vide (bug de chargement), on évite le crash
+  playSound('spin');
   if (!wheelSegments || wheelSegments.length === 0) {
       console.error("Erreur critique : Données de la roue manquantes !");
       showToast("Erreur de chargement. Veuillez rafraîchir.", "error");
@@ -402,6 +407,23 @@ socket.on('roomJoined', (data) => {
   handleRoomConnection(data);
 });
 
+function generateQRCode(elementId, roomCode) {
+  const container = document.getElementById(elementId);
+  if (container) {
+    container.innerHTML = ""; // On vide l'ancien
+    const joinUrl = `${window.location.origin}?code=${roomCode}`;
+    
+    new QRCode(container, {
+      text: joinUrl,
+      width: 128,
+      height: 128,
+      colorDark : "#000000",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.H
+    });
+  }
+}
+
 function handleRoomConnection(data) {
   state.roomCode = data.roomCode;
   state.playerId = data.playerId;
@@ -463,6 +485,7 @@ function handleRoomConnection(data) {
        waitingMsg.textContent = "En attente d'un adversaire...";
        waitingMsg.classList.remove('hidden');
      }
+     generateQRCode('qrcode-roulette', data.roomCode);
 
      showScreen('rouletteOnlineLobby');
      return; 
@@ -486,6 +509,9 @@ function handleRoomConnection(data) {
   updatePlayersList();
   updateRulesDisplay(data.gameType);
   checkGameAvailability();
+
+  generateQRCode('qrcode-general', data.roomCode);
+
   showScreen('lobby');
 }
 
@@ -493,7 +519,7 @@ socket.on('playerJoined', ({ players }) => {
   state.players = players;
   updatePlayersList();
   checkGameAvailability();
-  
+  playSound('join');
   // === LOGIQUE ROULETTE ===
   if (state.gameType === 'roulette' && state.rouletteMode === 'online') {
       const waitingMsg = document.getElementById('roulette-waiting-message');
@@ -659,6 +685,9 @@ socket.on('voteReceived', ({ totalVotes }) => {
 socket.on('questionResults', ({ winners, votes, voteDetails, isLastQuestion }) => {
   document.getElementById('winner-display').innerHTML = winners.map(w => `<div>🏆 ${w}</div>`).join('');
   document.getElementById('vote-details').innerHTML = voteDetails.map(v => `<div>${v.voter} ➔ ${v.votedFor}</div>`).join('');
+  launchConfetti();
+  playSound('win');
+  vibrate([100, 50, 100]);
   
   const btn = document.getElementById('next-question-btn');
   btn.textContent = isLastQuestion ? 'Fin de partie' : 'Suivante';
@@ -762,6 +791,8 @@ socket.on('undercoverElimination', (data) => {
   const display = document.getElementById('eliminated-player-display');
   const roleText = data.wasMrWhite ? 'Mr. White' : (data.wasUndercover ? 'Undercover' : 'Civil');
   const player = state.players.find(p => p.name === data.eliminatedPlayer);
+  playSound('eliminated');
+  vibrate(500)
 
   if (player) {
     player.isAlive = false;
@@ -818,6 +849,9 @@ socket.on('undercoverGameEnd', (data) => {
   
   document.getElementById('civil-word').textContent = data.wordPair[0];
   document.getElementById('undercover-word').textContent = data.wordPair[1];
+
+  launchConfetti();
+  playSound('win');
   
   const list = document.getElementById('roles-list');
   list.innerHTML = data.allPlayers.map(p => `<li>${p.name} - <strong>${p.role}</strong> (${p.word})</li>`).join('');
@@ -947,5 +981,63 @@ function stopEasterEgg() {
   video.pause();
   video.currentTime = 0;
 }
+
+// ==================== MANAGER D'EFFETS SPÉCIAUX ====================
+
+const audioFiles = {
+  join: new Audio('/sounds/pop.mp3'),
+  win: new Audio('/sounds/win.mp3'),
+  eliminated: new Audio('/sounds/buzz.mp3'),
+  spin: new Audio('/sounds/spin.mp3') // Un son de "tic-tic-tic"
+};
+
+function playSound(name) {
+  const sound = audioFiles[name];
+  if (sound) {
+    sound.currentTime = 0;
+    sound.play().catch(e => console.log("Son bloqué (attente interaction user)"));
+  }
+}
+
+function vibrate(pattern) {
+  if (navigator.vibrate) {
+    navigator.vibrate(pattern); // ex: [100, 50, 100]
+  }
+}
+
+function launchConfetti() {
+  confetti({
+    particleCount: 100,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db']
+  });
+}
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      await navigator.wakeLock.request('screen');
+      console.log("WakeLock activé : L'écran restera allumé !");
+    } catch (err) {
+      console.log("WakeLock erreur :", err);
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const codeParam = urlParams.get('code');
+  
+  if (codeParam) {
+    document.getElementById('room-code').value = codeParam;
+    document.getElementById('join-form').classList.remove('hidden');
+    document.getElementById('create-room-btn').parentElement.classList.add('hidden');
+  }
+
+  document.body.addEventListener('click', () => {
+    requestWakeLock();
+  }, { once: true });
+});
 
 socket.on('error', ({ message }) => showToast(message, 'error'));

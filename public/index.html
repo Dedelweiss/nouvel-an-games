@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🎉 Jeux du Nouvel An</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -123,6 +125,8 @@
       <div class="room-code-display">
         Code :  <span id="roulette-room-code"></span>
         <button id="roulette-copy-code-btn" class="btn-small">📋</button>
+        <div id="qrcode-roulette" style="margin-top: 15px; display: flex; justify-content: center;"></div>
+        <p class="scan-instruction" style="font-size: 0.8em; opacity: 0.7;">Scannez pour rejoindre !</p>
       </div>
       
       <div class="roulette-players-status">
@@ -150,8 +154,6 @@
       </button>
     </div>
 
-    <!-- ==================== ROULETTE - JEU ==================== -->
-    <!-- ==================== ROULETTE - JEU ==================== -->
     <div id="roulette-game-screen" class="screen">
       <div class="roulette-header">
         <div class="roulette-player roulette-player-1">
@@ -199,18 +201,19 @@
       </div>
     </div>
 
-    <!-- ==================== SALON D'ATTENTE ==================== -->
     <div id="lobby-screen" class="screen">
       <h2>🎊 Salon d'attente</h2>
       
-      <div class="current-game-display">
-        <span id="current-game-icon">🔥</span>
-        <span id="current-game-name">Hot Seat</span>
+      <div class="current-game-display" id="current-game-infos">
+        <span id="current-game-icon"></span>
+        <span id="current-game-name"></span>
       </div>
       
       <div class="room-code-display">
         Code : <span id="display-room-code"></span>
         <button id="copy-code-btn" class="btn-small">📋</button>
+        <div id="qrcode-general" style="margin-top: 15px; display: flex; justify-content: center;"></div>
+        <p class="scan-instruction" style="font-size: 0.8em; opacity: 0.7;">Scannez pour rejoindre !</p>
       </div>
       
       <div class="players-list">

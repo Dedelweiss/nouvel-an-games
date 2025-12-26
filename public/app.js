@@ -27,7 +27,16 @@ let state = {
 const avatars = ['😀', '😎', '🥳', '🤩', '😺', '🦊', '🐻', '🐼', '🐨', '🦁', '🐸', '🐙', '🦋', '🐢', '🦄', '🐳', '🦜', '🦔', '🐲', '🎃'];
 
 // Segments de la roue (identiques au backend pour la cohérence visuelle)
-let wheelSegments = []
+let wheelSegments = [
+  { color: '#e74c3c', name: '{player1} prend cher', count: 1, target: 'player1', gages: ["{player1} boit un verre !", "{player1} cul sec !"] },
+  { color: '#f39c12', name: '{player2} prend cher', count: 1, target: 'player2', gages: ["{player2} boit un verre !", "{player2} cul sec !"] },
+  { color: '#2ecc71', name: 'Tranquillou', count: 0, target: 'none', gages: ["Personne ne boit !", "Pause générale !"] },
+  { color: '#3498db', name: 'Collectif', count: 1, target: 'both', gages: ["Santé ! Tout le monde boit !", "Les deux trinquent !"] },
+  { color: '#9b59b6', name: '{player1} le master', count: 0, target: 'player1_gives', gages: ["{player1} distribue 2 gorgées !", "{player1} invente une règle !"] },
+  { color: '#1abc9c', name: '{player2} le master', count: 0, target: 'player2_gives', gages: ["{player2} distribue 2 gorgées !", "{player2} invente une règle !"] },
+  { color: '#e67e22', name: 'Défi du destin', count: 1, target: 'game', gages: ["Pierre-Feuille-Ciseaux : le perdant boit !", "Bras de fer !"] },
+  { color: '#34495e', name: 'Jackpot ou Crash', count: 3, target: 'jackpot', gages: ["JACKPOT ! {player1} boit 3 verres !", "CATASTROPHE ! Tout le monde finit son verre !"] }
+];
 // ==================== DOM ELEMENTS ====================
 const screens = {
   home: document.getElementById('home-screen'),
@@ -277,17 +286,64 @@ document.getElementById('roulette-copy-code-btn')?.addEventListener('click', () 
 
 // Jeu
 document.getElementById('spin-wheel-btn')?.addEventListener('click', () => {
-  document.getElementById('spin-wheel-btn').disabled = true;
-  socket.emit('requestSpin');
+  const btn = document.getElementById('spin-wheel-btn');
+  btn.disabled = true;
+
+  // CAS 1 : MODE LOCAL (Le navigateur calcule tout seul)
+  if (state.rouletteMode === 'local') {
+    // 1. Choisir au hasard
+    const segmentIndex = Math.floor(Math.random() * wheelSegments.length);
+    const segment = wheelSegments[segmentIndex];
+    const gage = segment.gages[Math.floor(Math.random() * segment.gages.length)];
+
+    // 2. Lancer l'animation tout de suite
+    triggerWheelAnimation({
+      segmentIndex: segmentIndex,
+      segment: segment,
+      gage: gage
+    });
+  } 
+  // CAS 2 : MODE ONLINE (On demande au serveur)
+  else {
+    socket.emit('requestSpin');
+  }
 });
+// public/app.js
+
 document.getElementById('spin-again-btn')?.addEventListener('click', () => {
   const btn = document.getElementById('spin-again-btn');
-  // 1. Je désactive mon bouton tout de suite pour éviter le double-clic
   btn.disabled = true;
   btn.textContent = 'Attente...';
   
-  // 2. Je demande au serveur de relancer pour tout le monde
-  socket.emit('requestNextTurn');
+  if (state.rouletteMode === 'local') {
+    // Reset local immédiat
+    resetRouletteUI();
+  } else {
+    // Demande au serveur
+    socket.emit('requestNextTurn');
+  }
+});
+
+// Créer une fonction pour le reset (pour éviter la duplication)
+function resetRouletteUI() {
+  document.getElementById('roulette-result').classList.add('hidden');
+  document.getElementById('roulette-actions').classList.add('hidden');
+  
+  const spinBtn = document.getElementById('spin-wheel-btn');
+  spinBtn.classList.remove('hidden');
+  spinBtn.disabled = false;
+  spinBtn.textContent = '🎰 Tourner la roue !';
+  
+  const replayBtn = document.getElementById('spin-again-btn');
+  if (replayBtn) {
+    replayBtn.disabled = false;
+    replayBtn.textContent = '🔄 Rejouer';
+  }
+}
+
+// Modifier l'écouteur du serveur pour utiliser cette fonction
+socket.on('rouletteResetUI', () => {
+  resetRouletteUI();
 });
 document.getElementById('roulette-quit-btn')?.addEventListener('click', () => location.reload());
 
@@ -319,13 +375,11 @@ function startRouletteGame() {
 // ==================== LOGIQUE ROULETTE (SYNC) ====================
 
 // Cet événement est reçu par TOUS les joueurs en même temps
-socket.on('rouletteSpinStart', (data) => {
+// public/app.js
+
+// Fonction qui fait tourner la roue (Commune Local et Online)
+function triggerWheelAnimation(data) {
   playSound('spin');
-  if (!wheelSegments || wheelSegments.length === 0) {
-      console.error("Erreur critique : Données de la roue manquantes !");
-      showToast("Erreur de chargement. Veuillez rafraîchir.", "error");
-      return;
-  }
 
   const wheel = document.getElementById('roulette-wheel');
   const btn = document.getElementById('spin-wheel-btn');
@@ -336,7 +390,6 @@ socket.on('rouletteSpinStart', (data) => {
   }
 
   const segmentAngle = 360 / wheelSegments.length;
-  // Calcul protégé
   const stopAngle = 360 - ((data.segmentIndex * segmentAngle) + (segmentAngle / 2)); 
   const randomOffset = (Math.random() * 10) - 5; 
   const rotations = 360 * 5;
@@ -348,8 +401,12 @@ socket.on('rouletteSpinStart', (data) => {
 
   setTimeout(() => {
     showRouletteResult(data.segment, data.gage);
-    // On ne reset PAS le bouton ici, on attend le "Rejouer" ou le "Next Turn"
   }, 4000);
+}
+
+// Réception du serveur (Mode Online)
+socket.on('rouletteSpinStart', (data) => {
+  triggerWheelAnimation(data);
 });
 
 socket.on('rouletteResetUI', () => {

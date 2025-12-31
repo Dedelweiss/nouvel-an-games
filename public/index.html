@@ -529,13 +529,16 @@
   <!-- Toast pour les notifications -->
   <div id="toast" class="toast hidden"></div>
 
-  <div id="video-overlay" class="hidden">
-    <button id="close-video-btn">✖</button>
-    <video id="secret-video" playsinline>
-      <source src="lol.mp4" type="video/mp4">
-      Ton navigateur ne supporte pas la vidéo.
-    </button>
-  </div>
+<div id="video-overlay" class="hidden">
+  <button id="close-video-btn">✖</button>
+  
+  <button id="manual-play-btn" class="hidden">▶ Lancer la vidéo</button>
+
+  <video id="secret-video" playsinline>
+    <source src="test.mp4" type="video/mp4">
+    Votre navigateur ne supporte pas la vidéo.
+  </video>
+</div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="app.js"></script>

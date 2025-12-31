@@ -945,18 +945,56 @@ if (trigger && overlay && video) {
   video.addEventListener('ended', stopEasterEgg);
 }
 
+const manualPlayBtn = document.getElementById('manual-play-btn');
+
 function launchEasterEgg() {
+  console.log("🚀 Tentative lancement Easter Egg...");
+  
+  // 1. Afficher l'overlay
   overlay.classList.remove('hidden');
+  manualPlayBtn.classList.add('hidden'); // Cacher le bouton manuel au début
+
+  // 2. Forcer le rechargement de la source (important si bug précédent)
+  video.load();
   video.currentTime = 0;
-  video.play().catch(e => console.log("Erreur lecture auto:", e));
-  showToast("🎉 SURPRISE !!! 🎉", "success");
+
+  // 3. Tenter le lancement automatique
+  const playPromise = video.play();
+
+  if (playPromise !== undefined) {
+    playPromise
+      .then(() => {
+        console.log("✅ Lecture auto réussie !");
+      })
+      .catch(error => {
+        console.warn("⚠️ Autoplay bloqué ou erreur codec :", error);
+        // SI ÉCHEC : On affiche le gros bouton "Play"
+        manualPlayBtn.classList.remove('hidden');
+        showToast("Cliquez sur le bouton pour lancer", "info");
+      });
+  }
 }
 
-function stopEasterEgg() {
-  overlay.classList.add('hidden');
+// 4. Activer le bouton manuel
+if (manualPlayBtn) {
+  manualPlayBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Empêche de fermer l'overlay
+    manualPlayBtn.classList.add('hidden');
+    video.play();
+  });
+}
+
+function stopEasterEgg(e) {
+  // Petite sécurité pour ne pas fermer si on clique sur le bouton play
+  if (e && e.target.id === 'manual-play-btn') return;
+  
+  console.log("🛑 Arrêt vidéo");
   video.pause();
   video.currentTime = 0;
+  overlay.classList.add('hidden');
 }
+
+// ... Tes écouteurs existants pour fermer ...
 
 // ==================== MANAGER D'EFFETS SPÉCIAUX ====================
 

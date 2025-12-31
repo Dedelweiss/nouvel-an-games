@@ -1,8 +1,18 @@
 // games/roulette.js
-const { wheelSegments } = require('../utils/data');
+
+// 1. Définition des segments (Catégories génériques)
+const wheelSegments = [
+  { color: '#e74c3c', name: 'Cul sec', gages: ['Tout le monde boit !', 'Cul sec pour {player}'], count: 1 },
+  { color: '#3498db', name: 'Vérité', gages: ['{player} doit raconter une honte', '{player} montre sa dernière photo', 'Vérité pour {player} : Ton dernier SMS ?'], count: 0 },
+  { color: '#f1c40f', name: 'Distribue', gages: ['{player} distribue 2 gorgées', '{player} distribue 5 gorgées'], count: 0 },
+  { color: '#2ecc71', name: 'Jeu', gages: ['"Je n\'ai jamais..." lancé par {player}', 'Action ou Vérité pour {player}'], count: 0 },
+  { color: '#9b59b6', name: 'Shot', gages: ['Shot pour {player} !', 'Les voisins de {player} boivent'], count: 0 },
+  { color: '#e67e22', name: 'Défi', gages: ['{player} fait 10 pompes', '{player} ne dit plus oui ni non'], count: 0 }
+];
 
 function initGame(room) {
-  room.rouletteScores = new Map();
+  // On ne stocke plus les scores individuels complexes pour l'instant
+  room.rouletteSpinCount = 0;
 }
 
 function getWheelConfig() {
@@ -10,31 +20,38 @@ function getWheelConfig() {
 }
 
 function startGame(io, room) {
-  const players = Array.from(room.players.values());
-  const player1 = players[0];
-  const player2 = players[1];
-
-  players.forEach(p => room.rouletteScores.set(p.id, 0));
-
+  // On envoie juste le signal de départ
   io.to(room.code).emit('gameStarted', {
     gameType: 'roulette',
-    player1Name: player1 ? player1.name : 'Joueur 1',
-    player2Name: player2 ? player2.name : 'Joueur 2',
     wheelConfig: wheelSegments
   });
 }
 
 function handleSpinRequest(io, socket, room) {
-  // Sécurité : Si la roue tourne déjà, on ignore (optionnel mais recommandé)
-  
+  // 1. Choisir le segment de la roue
   const segmentIndex = Math.floor(Math.random() * wheelSegments.length);
   const segment = wheelSegments[segmentIndex];
-  const gage = segment.gages[Math.floor(Math.random() * segment.gages.length)];
+  
+  // 2. Choisir un gage brut
+  const rawGage = segment.gages[Math.floor(Math.random() * segment.gages.length)];
 
+  // 3. CHOISIR UNE VICTIME (Parmi tous les joueurs vivants/connectés)
+  const playersArray = Array.from(room.players.values());
+  const victim = playersArray[Math.floor(Math.random() * playersArray.length)];
+  const victimName = victim ? victim.name : "Quelqu'un";
+
+  // 4. Remplacer {player} par le nom de la victime
+  // On remplace aussi {player1} ou {player2} au cas où il en reste dans les textes
+  const finalGage = rawGage
+    .replace(/{player}/g, `<span class="highlight">${victimName}</span>`)
+    .replace(/{player1}/g, `<span class="highlight">${victimName}</span>`)
+    .replace(/{player2}/g, `<span class="highlight">${victimName}</span>`);
+
+  // 5. Envoyer l'animation à tout le monde
   io.to(room.code).emit('rouletteSpinStart', {
     segmentIndex: segmentIndex,
     segment: segment,
-    gage: gage,
+    gage: finalGage, // Le texte est déjà formaté par le serveur
     spinnerId: socket.odId
   });
 }
@@ -48,5 +65,5 @@ module.exports = {
   startGame, 
   handleSpinRequest, 
   handleNextTurn, 
-  getWheelConfig // <--- Important : on exporte ça
+  getWheelConfig 
 };

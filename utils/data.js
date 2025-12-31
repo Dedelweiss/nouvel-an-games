@@ -215,15 +215,14 @@ const wordPairs = [
 ];
 
 // Si tu veux gérer la logique de roue côté serveur (optionnel mais propre)
-const wheelSegments = [
-  { color: '#e74c3c', name: '{player1} prend cher', count: 1, target: 'player1', gages: ["{player1} boit un verre !", "{player1} cul sec !"] },
-  { color: '#f39c12', name: '{player2} prend cher', count: 1, target: 'player2', gages: ["{player2} boit un verre !", "{player2} cul sec !"] },
-  { color: '#2ecc71', name: 'Tranquillou', count: 0, target: 'none', gages: ["Personne ne boit !", "Pause générale !"] },
-  { color: '#3498db', name: 'Collectif', count: 1, target: 'both', gages: ["Santé ! Tout le monde boit !", "Les deux trinquent !"] },
-  { color: '#9b59b6', name: '{player1} le master', count: 0, target: 'player1_gives', gages: ["{player1} distribue 2 gorgées !", "{player1} invente une règle !"] },
-  { color: '#1abc9c', name: '{player2} le master', count: 0, target: 'player2_gives', gages: ["{player2} distribue 2 gorgées !", "{player2} invente une règle !"] },
-  { color: '#e67e22', name: 'Défi du destin', count: 1, target: 'game', gages: ["Pierre-Feuille-Ciseaux : le perdant boit !", "Bras de fer !"] },
-  { color: '#34495e', name: 'Jackpot ou Crash', count: 3, target: 'jackpot', gages: ["JACKPOT ! {player1} boit 3 verres !", "CATASTROPHE ! Tout le monde finit son verre !"] }
+// public/app.js - Segments par défaut LOCAL
+// Note l'utilisation de {player} au singulier
+let wheelSegments = [
+  { color: '#e74c3c', name: 'Cul sec', gages: ['Tout le monde boit !', 'Cul sec pour {player}'], target: 'victim', count: 1 },
+  { color: '#3498db', name: 'Vérité', gages: ['{player} doit raconter une honte', '{player} montre sa dernière photo'], target: 'victim', count: 0 },
+  { color: '#f1c40f', name: 'Distribue', gages: ['{player} distribue 2 gorgées', '{player} distribue 5 gorgées'], target: 'victim', count: 0 },
+  { color: '#2ecc71', name: 'Jeu', gages: ['Dans ma valise...', 'Action ou Vérité pour {player}'], target: 'victim', count: 0 },
+  { color: '#9b59b6', name: 'Shot', gages: ['Shot pour {player} !', 'Les voisins de {player} boivent'], target: 'victim', count: 0 }
 ];
 
 module.exports = { hotSeatQuestions, wordPairs, wheelSegments };

@@ -93,30 +93,27 @@
     </div>
 
     <!-- ==================== ROULETTE - MODE LOCAL (SAISIE NOMS) ==================== -->
-    <div id="roulette-local-setup-screen" class="screen">
-      <h2>🎰 Roulette - Face à face</h2>
-      <p class="subtitle">Entrez les noms des deux joueurs</p>
-      
-      <div class="roulette-players-form">
-        <div class="form-group">
-          <label>Joueur 1 :</label>
-          <input type="text" id="roulette-player1-name" placeholder="Nom du joueur 1" maxlength="20">
-        </div>
-        <div class="vs-divider">VS</div>
-        <div class="form-group">
-          <label>Joueur 2 :</label>
-          <input type="text" id="roulette-player2-name" placeholder="Nom du joueur 2" maxlength="20">
-        </div>
-      </div>
-      
-      <button id="roulette-local-start-btn" class="btn btn-primary">
-        🎰 Commencer ! 
-      </button>
-      
-      <button id="roulette-local-back-btn" class="btn btn-secondary">
-        ← Retour
-      </button>
-    </div>
+<div id="roulette-local-setup-screen" class="screen">
+  <h2>🎰 Roulette Locale</h2>
+  <p class="subtitle">Ajoutez les participants (min. 2)</p>
+  
+  <div class="input-group">
+    <input type="text" id="roulette-local-input" placeholder="Prénom du joueur..." maxlength="12">
+    <button id="roulette-add-player-btn" class="btn-icon">➕</button>
+  </div>
+
+  <ul id="roulette-local-player-list" class="player-tags-container">
+    </ul>
+
+  <div class="actions buttons">
+    <button id="roulette-local-start-btn" class="btn btn-primary hidden">
+      🚀 Lancer la partie
+    </button>
+    <button id="roulette-local-back-btn" class="btn btn-secondary">
+      ← Retour
+    </button>
+  </div>
+</div>
 
     <!-- ==================== ROULETTE - MODE ONLINE (ATTENTE) ==================== -->
     <div id="roulette-online-lobby-screen" class="screen">
@@ -155,7 +152,7 @@
     </div>
 
     <div id="roulette-game-screen" class="screen">
-      <div class="roulette-header">
+      <div id="roulette-header" class="roulette-header">
         <div class="roulette-player roulette-player-1">
           <span class="roulette-player-icon">🍺</span>
           <span class="roulette-player-name" id="roulette-p1-name">Joueur 1</span>

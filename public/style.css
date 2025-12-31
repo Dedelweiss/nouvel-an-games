@@ -1675,3 +1675,124 @@ input:checked + .slider:before { transform: translateX(16px); }
     padding: 15px 30px;
   }
 }
+/* public/style.css */
+
+.player-tags-container {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.player-tag {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 5px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-tag:hover {
+  background: #c0392b; /* Rouge pour indiquer qu'on peut supprimer */
+  border-color: #e74c3c;
+}
+
+.player-tag span {
+  pointer-events: none;
+}
+.input-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+/* Le champ texte prend toute la place disponible */
+.input-group input {
+  flex: 1;
+  margin-bottom: 0; /* On enlève la marge par défaut */
+}
+
+/* Style du bouton "+" */
+.btn-icon {
+  background: #f39c12;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  width: 50px; /* Carré */
+  height: 52px; /* Même hauteur que l'input */
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+/* Style du bouton "+" */
+.btn-icon {
+  background: #f39c12;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  width: 50px; /* Carré */
+  height: 52px; /* Même hauteur que l'input */
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.btn-icon:hover {
+  background: #e67e22;
+  transform: scale(1.05);
+}
+
+/* Conteneur des étiquettes de joueurs */
+.player-tags-container {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  min-height: 50px; /* Pour ne pas que ça saute quand vide */
+  margin-bottom: 20px;
+}
+
+/* Style des étiquettes (Tags) */
+.player-tag {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 15px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  animation: popIn 0.3s ease;
+}
+
+.player-tag:hover {
+  background: rgba(231, 76, 60, 0.8); /* Rouge au survol */
+  border-color: #e74c3c;
+}
+
+.player-tag span {
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

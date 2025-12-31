@@ -24,15 +24,75 @@ let state = {
 
 const avatars = ['😀', '😎', '🥳', '🤩', '😺', '🦊', '🐻', '🐼', '🐨', '🦁', '🐸', '🐙', '🦋', '🐢', '🦄', '🐳', '🦜', '🦔', '🐲', '🎃'];
 
-let wheelSegments = [
-  { color: '#e74c3c', name: '{player1} prend cher', count: 1, target: 'player1', gages: ["{player1} boit un verre !", "{player1} cul sec !"] },
-  { color: '#f39c12', name: '{player2} prend cher', count: 1, target: 'player2', gages: ["{player2} boit un verre !", "{player2} cul sec !"] },
-  { color: '#2ecc71', name: 'Tranquillou', count: 0, target: 'none', gages: ["Personne ne boit !", "Pause générale !"] },
-  { color: '#3498db', name: 'Collectif', count: 1, target: 'both', gages: ["Santé ! Tout le monde boit !", "Les deux trinquent !"] },
-  { color: '#9b59b6', name: '{player1} le master', count: 0, target: 'player1_gives', gages: ["{player1} distribue 2 gorgées !", "{player1} invente une règle !"] },
-  { color: '#1abc9c', name: '{player2} le master', count: 0, target: 'player2_gives', gages: ["{player2} distribue 2 gorgées !", "{player2} invente une règle !"] },
-  { color: '#e67e22', name: 'Défi du destin', count: 1, target: 'game', gages: ["Pierre-Feuille-Ciseaux : le perdant boit !", "Bras de fer !"] },
-  { color: '#34495e', name: 'Jackpot ou Crash', count: 3, target: 'jackpot', gages: ["JACKPOT ! {player1} boit 3 verres !", "CATASTROPHE ! Tout le monde finit son verre !"] }
+// games/roulette.js
+
+const wheelSegments = [
+  { 
+    color: '#e74c3c', // Rouge
+    name: '💀 CUL SEC', 
+    gages: [
+      "{player} finit son verre MAINTENANT !",
+      "Shot de vodka/tequila pour {player} !",
+      "{player} boit 5 grosses gorgées sans respirer.",
+      "Cocktail de l'enfer : tout le monde verse un peu dans le verre de {player} !"
+    ], 
+    count: 5 
+  },
+  { 
+    color: '#f1c40f', // Or
+    name: '👑 LE ROI', 
+    gages: [
+      "{player} distribue 5 gorgées à qui il veut.",
+      "{player} invente une RÈGLE (ex: interdit de dire 'Boire', boire de la main gauche...).",
+      "{player} devient le 'Maître des Pouces' (Dernier à poser le pouce boit).",
+      "{player} choisit un partenaire : ils boivent ensemble jusqu'à la fin."
+    ], 
+    count: 0 
+  },
+  { 
+    color: '#3498db', // Bleu
+    name: '🍻 TOUS', 
+    gages: [
+      "Santé ! Tout le monde boit 2 gorgées !",
+      "Le dernier à toucher son nez boit 3 gorgées !",
+      "Les célibataires boivent 2 gorgées !",
+      "Ceux qui sont en couple boivent 2 gorgées !"
+    ], 
+    count: 1 
+  },
+  { 
+    color: '#9b59b6', // Violet
+    name: '😈 VÉRITÉ / ACTION', 
+    gages: [
+      "Vérité pour {player} : Cite une personne ici avec qui tu pourrais coucher.",
+      "Action pour {player} : Envoie un message au 3ème contact de ton téléphone.",
+      "Vérité pour {player} : Ta pire honte en soirée ?",
+      "Action pour {player} : Fais 10 pompes ou bois 3 gorgées."
+    ], 
+    count: 2 
+  },
+  { 
+    color: '#2ecc71', // Vert
+    name: '🎲 JEU', 
+    gages: [
+      "Je n'ai jamais... (Lancé par {player})",
+      "Dans ma valise... (Le perdant boit)",
+      "Ni Oui Ni Non avec {player} jusqu'au prochain tour.",
+      "Pierre-Feuille-Ciseaux : {player} défie quelqu'un (le perdant boit 3)."
+    ], 
+    count: 0 
+  },
+  { 
+    color: '#e67e22', // Orange
+    name: '🔥 TENSION', 
+    gages: [
+      "{player} boit autant de gorgées que de lettres dans son prénom.",
+      "Les voisins de gauche et droite de {player} boivent 2 gorgées.",
+      "Si {player} a un iPhone, il boit. Sinon il distribue 2 gorgées.",
+      "{player} ne doit plus montrer ses dents en rigolant (sinon il boit)."
+    ], 
+    count: 2 
+  }
 ];
 // ==================== DOM ELEMENTS ====================
 const screens = {
@@ -248,13 +308,6 @@ document.getElementById('roulette-local-btn')?.addEventListener('click', () => {
   state.rouletteMode = 'local';
   showScreen('rouletteLocalSetup');
 });
-document.getElementById('roulette-local-start-btn')?.addEventListener('click', () => {
-  const p1 = document.getElementById('roulette-player1-name').value || 'Joueur 1';
-  const p2 = document.getElementById('roulette-player2-name').value || 'Joueur 2';
-  state.roulettePlayer1 = p1;
-  state.roulettePlayer2 = p2;
-  startRouletteGame();
-});
 
 document.getElementById('roulette-online-btn')?.addEventListener('click', () => {
   state.rouletteMode = 'online';
@@ -268,21 +321,38 @@ document.getElementById('roulette-copy-code-btn')?.addEventListener('click', () 
   showToast('Code copié !', 'success');
 });
 
+// public/app.js - Dans l'EventListener 'spin-wheel-btn'
+
 document.getElementById('spin-wheel-btn')?.addEventListener('click', () => {
   const btn = document.getElementById('spin-wheel-btn');
   btn.disabled = true;
 
+  // CAS 1 : MODE LOCAL (Multi-joueurs)
   if (state.rouletteMode === 'local') {
+    
+    // 1. Choisir un segment
     const segmentIndex = Math.floor(Math.random() * wheelSegments.length);
     const segment = wheelSegments[segmentIndex];
-    const gage = segment.gages[Math.floor(Math.random() * segment.gages.length)];
+    let rawGage = segment.gages[Math.floor(Math.random() * segment.gages.length)];
 
+    // 2. CHOISIR UNE VICTIME AU HASARD DANS LA LISTE
+    const victim = state.localPlayers[Math.floor(Math.random() * state.localPlayers.length)];
+    
+    // 3. Remplacer {player} par le nom de la victime
+    // On remplace aussi {player1} et {player2} au cas où tu gardes de vieux segments
+    const finalGage = rawGage
+      .replace(/{player}/g, `<span class="highlight">${victim}</span>`)
+      .replace(/{player1}/g, `<span class="highlight">${victim}</span>`) 
+      .replace(/{player2}/g, `<span class="highlight">${victim}</span>`);
+
+    // 4. Lancer l'animation
     triggerWheelAnimation({
       segmentIndex: segmentIndex,
       segment: segment,
-      gage: gage
+      gage: finalGage
     });
   } 
+  // CAS 2 : MODE ONLINE (Reste inchangé)
   else {
     socket.emit('requestSpin');
   }
@@ -332,12 +402,12 @@ function startRouletteGame() {
   document.getElementById('spin-wheel-btn').disabled = false;
 
   const legend = document.getElementById('wheel-legend');
-  legend.innerHTML = wheelSegments.map(s => `
-    <div class="legend-item">
-      <span class="legend-color" style="background:${s.color}"></span>
-      <span>${s.name.replace('{player1}', state.roulettePlayer1).replace('{player2}', state.roulettePlayer2)}</span>
-    </div>
-  `).join('');
+    legend.innerHTML = wheelSegments.map(s => `
+      <div class="legend-item">
+        <span class="legend-color" style="background:${s.color}"></span>
+        <span>${s.name}</span>
+      </div>
+    `).join('');
 
   showScreen('rouletteGame');
 }
@@ -389,27 +459,29 @@ socket.on('rouletteResetUI', () => {
   }
 });
 
+// public/app.js - Fonction showRouletteResult
+
 function showRouletteResult(segment, gage) {
   const resultDiv = document.getElementById('roulette-result');
   const resultText = document.getElementById('roulette-result-text');
   const resultColor = document.getElementById('roulette-result-color');
   
-  if (segment.target.includes('player1') || segment.target === 'both') state.rouletteScores.player1 += segment.count;
-  if (segment.target.includes('player2') || segment.target === 'both') state.rouletteScores.player2 += segment.count;
-  
-  document.getElementById('roulette-p1-score').textContent = `${state.rouletteScores.player1} verres`;
-  document.getElementById('roulette-p2-score').textContent = `${state.rouletteScores.player2} verres`;
-
+  // 1. Afficher la catégorie (Couleur + Nom)
   resultColor.style.background = segment.color;
-  resultColor.textContent = segment.name.replace('{player1}', state.roulettePlayer1).replace('{player2}', state.roulettePlayer2);
+  resultColor.textContent = segment.name;
   
-  resultText.innerHTML = gage
-    .replace('{player1}', `<span class="highlight">${state.roulettePlayer1}</span>`)
-    .replace('{player2}', `<span class="highlight">${state.roulettePlayer2}</span>`);
+  // 2. Afficher le gage (Le texte contient déjà le nom de la victime formaté en HTML)
+  resultText.innerHTML = gage;
 
+  // 3. Gestion des boutons
   document.getElementById('spin-wheel-btn').classList.add('hidden');
   resultDiv.classList.remove('hidden');
   document.getElementById('roulette-actions').classList.remove('hidden');
+
+  // Effets
+  launchConfetti();
+  playSound('win');
+  if(navigator.vibrate) vibrate([100, 50, 100]);
 }
 
 // ==================== SOCKET EVENTS ====================
@@ -1053,5 +1125,57 @@ window.addEventListener('DOMContentLoaded', () => {
     requestWakeLock();
   }, { once: true });
 });
+// public/app.js
+
+// Variable pour stocker les joueurs locaux
+state.localPlayers = []; 
+
+const localInput = document.getElementById('roulette-local-input');
+const localList = document.getElementById('roulette-local-player-list');
+const localStartBtn = document.getElementById('roulette-local-start-btn');
+
+function addLocalPlayer() {
+  const name = localInput.value.trim();
+  if (name && !state.localPlayers.includes(name)) {
+    state.localPlayers.push(name);
+    localInput.value = '';
+    renderLocalPlayers();
+  }
+}
+
+function renderLocalPlayers() {
+  localList.innerHTML = state.localPlayers.map(name => `
+    <li class="player-tag" onclick="removeLocalPlayer('${name}')">
+      ${name} <span>✖</span>
+    </li>
+  `).join('');
+  
+  // Affiche le bouton si on a au moins 2 joueurs
+  if (state.localPlayers.length >= 2) {
+    localStartBtn.classList.remove('hidden');
+  } else {
+    localStartBtn.classList.add('hidden');
+  }
+}
+
+window.removeLocalPlayer = (name) => {
+  state.localPlayers = state.localPlayers.filter(p => p !== name);
+  renderLocalPlayers();
+};
+
+document.getElementById('roulette-add-player-btn')?.addEventListener('click', addLocalPlayer);
+
+// Touche Entrée
+localInput?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') addLocalPlayer();
+});
+
+document.getElementById('roulette-local-start-btn')?.addEventListener('click', () => {
+    if (state.localPlayers.length < 2) return showToast("Il faut 2 joueurs minimum", "error");
+    // Masquer les scores en mode multi-local car on ne les gère pas individuellement
+    document.getElementById('roulette-header').classList.add('hidden'); // ou display:none via CSS
+    startRouletteGame();
+});
+
 
 socket.on('error', ({ message }) => showToast(message, 'error'));

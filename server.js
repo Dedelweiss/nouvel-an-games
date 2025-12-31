@@ -1,266 +1,316 @@
-// server.js
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+const { wordPairs } = require('../utils/data');
+const { shuffleArray, formatPlayersArray } = require('../utils/helpers');
 
-const { generateRoomCode, formatPlayersArray, createPlayer } = require('./utils/helpers');
-const hotSeatGame = require('./games/hotseat');
-const undercoverGame = require('./games/undercover');
-const rouletteGame = require('./games/roulette'); // Import du module
+function getUndercoverCount(playerCount) {
+  if (playerCount <= 6) return 1;
+  if (playerCount <= 12) return 2;
+  return 3;
+}
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+function checkVictory(room) {
+  const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
+  
+  const civilsCount = alivePlayers.filter(p => !p.isUndercover && !p.isMrWhite).length;
+  const impostorsCount = alivePlayers.filter(p => p.isUndercover || p.isMrWhite).length;
 
-app.use(express.static('public'));
+  console.log(`[CHECK] ${civilsCount} Civils vs ${impostorsCount} Imposteurs`);
 
-const rooms = new Map();
-
-io.on('connection', (socket) => {
-  console.log('Utilisateur connecté:', socket.id);
-
-  // --- CRÉATION ---
-  socket.on('createRoom', (data) => {
-    let playerName, gameType;
-    if (typeof data === 'string') {
-      playerName = data;
-      gameType = 'hotseat';
-    } else {
-      playerName = data.playerName;
-      gameType = data.gameType || 'hotseat';
-    }
-
-    const roomCode = generateRoomCode();
-    const room = {
-      code: roomCode,
-      host: null,
-      gameType: gameType,
-      questionMode: 'default',
-      players: new Map(),
-      gameStarted: false,
+  if (impostorsCount === 0) {
+    return { 
+      gameOver: true, 
+      winner: 'civils', 
+      message: '🎉 Les Civils ont gagné ! Tous les imposteurs sont éliminés.' 
     };
+  }
 
-    hotSeatGame.initGame(room);
-    undercoverGame.initGame(room);
-    rouletteGame.initGame(room);
+  let impostorsWin = false;
 
-    console.log(`Creating room with code: ${roomCode} and game type: ${gameType}, nom du joueur: ${playerName}`);
-
-    const player = createPlayer(playerName, socket.id, true);
-    room.host = player.id;
-    room.players.set(player.id, player);
-
-    rooms.set(roomCode, room);
-    socket.join(roomCode);
-    socket.roomCode = roomCode;
-    socket.odId = player.id;
-
-    socket.emit('roomCreated', {
-      roomCode,
-      playerId: player.id,
-      gameType: room.gameType,
-      players: formatPlayersArray(room.players),
-      // Si on crée une roulette direct, on envoie la config
-      wheelConfig: (gameType === 'roulette') ? rouletteGame.getWheelConfig() : null
-    });
-    console.log(`Partie ${gameType} créée: ${roomCode}`);
-  });
-
-  // --- REJOINDRE ---
-  socket.on('joinRoom', ({ roomCode, playerName }) => {
-    const room = rooms.get(roomCode.toUpperCase());
-    if (!room) return socket.emit('error', { message: 'Code invalide' });
-
-    // Validation stricte Roulette (Max 2)
-    if (room.gameType === 'roulette' && room.players.size >= 2) {
-      return socket.emit('error', { message: 'La partie est complète (Max 2 joueurs)' });
+  if (impostorsCount === 1) {
+    if (civilsCount <= 1) {
+      impostorsWin = true;
     }
-
-    if (room.gameStarted) return socket.emit('error', { message: 'La partie a déjà commencé' });
-
-    // Annuler suppression si salle vide
-    if (room.deleteTimeout) {
-      clearTimeout(room.deleteTimeout);
-      room.deleteTimeout = null;
+  } else {
+    if (impostorsCount > civilsCount) {
+      impostorsWin = true;
     }
+  }
 
-    const player = createPlayer(playerName, socket.id, false);
-    room.players.set(player.id, player);
+  if (impostorsWin) {
+    return { 
+      gameOver: true, 
+      winner: 'impostors', 
+      message: '🕵️ Les Imposteurs ont pris le contrôle !' 
+    };
+  }
 
-    socket.join(room.code);
-    socket.roomCode = room.code;
-    socket.odId = player.id;
+  return { gameOver: false };
+}
 
-    const playersData = formatPlayersArray(room.players);
+function initGame(room) {
+  room.currentWordPair = null;
+  room.currentPlayerIndex = 0;
+  room.roundNumber = 1;
+  room.hints = [];
+  room.eliminatedPlayers = [];
+  room.playerOrder = [];
+  room.waitingForMrWhite = null;
+}
+
+function startGame(io, room, settings = {}) {
+  const playerIds = Array.from(room.players.keys());
+  const shuffledIds = shuffleArray(playerIds);
+  const totalPlayers = playerIds.length;
+
+  let hasMrWhite = false;
+  if (settings.includeMrWhite !== undefined) {
+    hasMrWhite = settings.includeMrWhite;
+  } else {
+    hasMrWhite = totalPlayers >= 5;
+  }
+
+  let undercoverCount = 1;
+  if (settings.undercoverCount) {
+    undercoverCount = settings.undercoverCount;
+  } else {
+    undercoverCount = Math.floor((totalPlayers - (hasMrWhite ? 1 : 0)) / 3) || 1;
+  }
+  
+  const maxImpostors = totalPlayers - 1;
+  const totalImpostors = undercoverCount + (hasMrWhite ? 1 : 0);
+  if (totalImpostors > maxImpostors) {
+    undercoverCount = Math.max(1, maxImpostors - (hasMrWhite ? 1 : 0));
+  }
+
+  const pairIndex = Math.floor(Math.random() * wordPairs.length);
+  room.currentWordPair = wordPairs[pairIndex];
+
+  const undercoverIds = shuffledIds.slice(0, undercoverCount);
+  let mrWhiteId = null;
+  if (hasMrWhite) {
+    mrWhiteId = shuffledIds[undercoverCount]; 
+  }
+
+  room.players.forEach((player, odId) => {
+    player.isAlive = true;
+    player.hasGivenHint = false;
     
-    // REFACTOR IMPORTANT : On envoie la config de la roue ici aussi
-    socket.emit('roomJoined', {
-      roomCode: room.code,
-      playerId: player.id,
-      gameType: room.gameType,
-      questionMode: room.questionMode,
-      players: playersData,
-      wheelConfig: (room.gameType === 'roulette') ? rouletteGame.getWheelConfig() : null
-    });
-    
-    socket.to(room.code).emit('playerJoined', { players: playersData });
-  });
-
-  // --- CONFIGURATION ---
-  socket.on('changeGameType', (gameType) => {
-    const room = rooms.get(socket.roomCode);
-    if (!room || room.host !== socket.odId) return;
-
-    // Validation avant changement
-    if (gameType === 'undercover' && room.players.size < 4) {
-      return socket.emit('error', { message: 'Il faut 4 joueurs min. pour Undercover' });
-    }
-    if (gameType === 'roulette' && room.players.size > 2) {
-      return socket.emit('error', { message: 'Max 2 joueurs pour la Roulette' });
-    }
-
-    room.gameType = gameType;
-    
-    // On notifie tout le monde et on envoie la config si c'est roulette
-    io.to(room.code).emit('gameTypeChanged', { 
-      gameType,
-      wheelConfig: (gameType === 'roulette') ? rouletteGame.getWheelConfig() : null
-    });
-  });
-
-  socket.on('changeQuestionMode', (mode) => {
-    const room = rooms.get(socket.roomCode);
-    if (room && room.host === socket.odId) {
-      room.questionMode = mode;
-      io.to(room.code).emit('questionModeChanged', { questionMode: mode });
+    if (undercoverIds.includes(odId)) {
+      player.isUndercover = true;
+      player.isMrWhite = false;
+      player.word = room.currentWordPair[1];
+    } else if (odId === mrWhiteId) {
+      player.isUndercover = false;
+      player.isMrWhite = true;
+      player.word = "???";
+    } else {
+      player.isUndercover = false;
+      player.isMrWhite = false;
+      player.word = room.currentWordPair[0];
     }
   });
 
-  // --- DÉMARRAGE ---
-  socket.on('startGame', (data) => {
-    const room = rooms.get(socket.roomCode);
-    if (!room || room.host !== socket.odId) return;
+  room.playerOrder = shuffleArray(playerIds);
+  room.currentPlayerIndex = 0;
+  room.roundNumber = 1;
+  room.votes.clear();
+  room.eliminatedPlayers = [];
 
-    if (data && data.questionMode) room.questionMode = data.questionMode;
-
-    if (room.gameType === 'hotseat') {
-      if (room.players.size < 2) return socket.emit('error', { message: 'Il faut au moins 2 joueurs' });
+  room.players.forEach((player) => {
+    const pSocket = io.sockets.sockets.get(player.socketId);
+    if (pSocket) {
       
-      if (room.questionMode === 'custom') {
-        io.to(room.code).emit('collectQuestions', { totalPlayers: room.players.size });
-      } else {
-        room.gameStarted = true;
-        hotSeatGame.startGame(io, room);
+      let roleToSend = 'civil';
+      if (player.isMrWhite) roleToSend = 'mrwhite';
+      else if (player.isUndercover) {
+        roleToSend = settings.revealUndercover ? 'undercover' : 'civil';
       }
-    } 
-    else if (room.gameType === 'undercover') {
-      if (room.players.size < 4) return socket.emit('error', { message: 'Il faut au moins 4 joueurs' });
-      room.gameStarted = true;
-      undercoverGame.startGame(io, room, data);
-    } 
-    else if (room.gameType === 'roulette') {
-      if (room.players.size < 2) return socket.emit('error', { message: 'Il faut 2 joueurs' });
-      room.gameStarted = true;
-      rouletteGame.startGame(io, room);
+
+      pSocket.emit('gameStarted', {
+        gameType: 'undercover',
+        yourWord: player.word,
+        yourRole: roleToSend,
+        undercoverCount: undercoverCount,
+        hasMrWhite: mrWhiteId !== null,
+        players: formatPlayersArray(room.players),
+        currentPlayerId: room.playerOrder[0],
+        roundNumber: 1
+      });
+    }
+  });
+}
+
+function handleHint(io, socket, room) {
+  const currentPlayerId = room.playerOrder[room.currentPlayerIndex];
+  if (socket.odId !== currentPlayerId) return;
+
+  const player = room.players.get(socket.odId);
+  if (!player || !player.isAlive || player.hasGivenHint) return;
+
+  player.hasGivenHint = true;
+  room.currentPlayerIndex++;
+
+  while (room.currentPlayerIndex < room.playerOrder.length) {
+    const nextPlayerId = room.playerOrder[room.currentPlayerIndex];
+    const nextPlayer = room.players.get(nextPlayerId);
+    if (nextPlayer && nextPlayer.isAlive && !nextPlayer.hasGivenHint) break;
+    room.currentPlayerIndex++;
+  }
+
+  const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
+  const hintsCount = alivePlayers.filter(p => p.hasGivenHint).length;
+  const allHintsGiven = alivePlayers.every(p => p.hasGivenHint);
+
+  if (allHintsGiven || room.currentPlayerIndex >= room.playerOrder.length) {
+    io.to(room.code).emit('undercoverVotePhase', {
+      players: alivePlayers.map(p => ({ id: p.id, name: p.name })),
+      roundNumber: room.roundNumber
+    });
+  } else {
+    io.to(room.code).emit('hintGiven', {
+      playerId: socket.odId,
+      playerName: player.name,
+      nextPlayerId: room.playerOrder[room.currentPlayerIndex],
+      hintsCount: hintsCount,
+      totalPlayers: alivePlayers.length
+    });
+  }
+}
+
+function handleVote(io, socket, room, votedPlayerId) {
+  const voter = room.players.get(socket.odId);
+  if (!voter || !voter.isAlive) return;
+
+  room.votes.set(socket.odId, votedPlayerId);
+  
+  const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
+
+  io.to(room.code).emit('undercoverVoteReceived', {
+    odId: socket.odId,
+    totalVotes: room.votes.size,
+    totalPlayers: alivePlayers.length
+  });
+
+  if (room.votes.size >= alivePlayers.length) {
+    processElimination(io, room);
+  }
+}
+
+function processElimination(io, room) {
+  const voteCount = new Map();
+  room.votes.forEach((votedId) => {
+    voteCount.set(votedId, (voteCount.get(votedId) || 0) + 1);
+  });
+
+  let maxVotes = 0;
+  let eliminated = [];
+  voteCount.forEach((count, odId) => {
+    if (count > maxVotes) {
+      maxVotes = count;
+      eliminated = [odId];
+    } else if (count === maxVotes) {
+      eliminated.push(odId);
     }
   });
 
-  // --- ROUTAGE JEUX ---
-  socket.on('submitQuestions', (d) => {
-    const r = rooms.get(socket.roomCode);
-    if (r?.gameType === 'hotseat') hotSeatGame.submitQuestions(io, socket, r, d.questions);
+  if (eliminated.length > 1) {
+    io.to(room.code).emit('undercoverTie', { message: 'Égalité ! Personne n\'est éliminé.' });
+    startNewRound(io, room);
+    return;
+  }
+
+  const eliminatedId = eliminated[0];
+  const eliminatedPlayer = room.players.get(eliminatedId);
+
+  eliminatedPlayer.isAlive = false;
+  
+  room.eliminatedPlayers.push({
+    id: eliminatedId,
+    name: eliminatedPlayer.name,
+    wasUndercover: eliminatedPlayer.isUndercover,
+    wasMrWhite: eliminatedPlayer.isMrWhite
+  });
+
+  io.to(room.code).emit('undercoverElimination', {
+    eliminatedPlayer: eliminatedPlayer.name,
+    wasUndercover: eliminatedPlayer.isUndercover,
+    wasMrWhite: eliminatedPlayer.isMrWhite,
+    remainingPlayers: Array.from(room.players.values()).filter(p => p.isAlive).map(p => ({ id: p.id, name: p.name }))
+  });
+
+  if (eliminatedPlayer.isMrWhite) {
+    const pSocket = io.sockets.sockets.get(eliminatedPlayer.socketId);
+    if (pSocket) pSocket.emit('mrWhiteGuess', { message: 'Devine le mot !' });
+    
+    room.waitingForMrWhite = eliminatedId;
+    return;
+  }
+
+  const victory = checkVictory(room);
+
+  if (victory.gameOver) {
+    endGame(io, room, victory);
+  } else {
+    setTimeout(() => startNewRound(io, room), 3000);
+  }
+}
+
+function handleMrWhiteGuess(io, socket, room, guessedWord) {
+  if (room.waitingForMrWhite !== socket.odId) return;
+
+  const correctWord = room.currentWordPair[0].toLowerCase();
+  const guess = guessedWord.toLowerCase().trim();
+  room.waitingForMrWhite = null;
+
+  if (guess === correctWord) {
+    endGame(io, room, { 
+        winner: 'impostors', 
+        message: `🎭 Mr.White a gagné en devinant "${room.currentWordPair[0]}" !` 
+    });
+  } else {
+    io.to(room.code).emit('mrWhiteGuessFailed', { message: `Raté ! C'était pas "${guessedWord}".` });
+    
+    const victory = checkVictory(room);
+    
+    if (victory.gameOver) {
+      endGame(io, room, victory);
+    } else {
+      setTimeout(() => startNewRound(io, room), 2000);
+    }
+  }
+}
+
+function startNewRound(io, room) {
+  room.roundNumber++;
+  room.votes.clear();
+  room.currentPlayerIndex = 0;
+  
+  room.players.forEach(p => { 
+      if(p.isAlive) p.hasGivenHint = false; 
   });
   
-  socket.on('vote', (id) => {
-    const r = rooms.get(socket.roomCode);
-    if (!r?.gameStarted) return;
-    if (r.gameType === 'hotseat') hotSeatGame.handleVote(io, socket, r, id);
-    else if (r.gameType === 'undercover') undercoverGame.handleVote(io, socket, r, id);
+  const alivePlayers = Array.from(room.players.entries()).filter(([, p]) => p.isAlive).map(([id]) => id);
+  room.playerOrder = shuffleArray(alivePlayers);
+
+  io.to(room.code).emit('undercoverNewRound', {
+    roundNumber: room.roundNumber,
+    currentPlayerId: room.playerOrder[0],
+    players: Array.from(room.players.values()).filter(p => p.isAlive).map(p => ({ id: p.id, name: p.name }))
   });
+}
 
-  socket.on('nextQuestion', () => {
-    const r = rooms.get(socket.roomCode);
-    if (r?.gameType === 'hotseat') hotSeatGame.nextQuestion(io, r);
+function endGame(io, room, victory, voteDetails = []) {
+  room.gameStarted = false;
+  io.to(room.code).emit('undercoverGameEnd', {
+    winner: victory.winner,
+    message: victory.message,
+    wordPair: room.currentWordPair,
+    voteDetails,
+    allPlayers: Array.from(room.players.values()).map(p => ({
+      name: p.name,
+      role: p.isMrWhite ? 'Mr.White' : (p.isUndercover ? 'Undercover' : 'Civil'),
+      word: p.word
+    }))
   });
+}
 
-  socket.on('hintDone', () => {
-    const r = rooms.get(socket.roomCode);
-    if (r?.gameType === 'undercover') undercoverGame.handleHint(io, socket, r);
-  });
-
-  socket.on('mrWhiteGuessWord', (w) => {
-    const r = rooms.get(socket.roomCode);
-    if (r?.gameType === 'undercover') undercoverGame.handleMrWhiteGuess(io, socket, r, w);
-  });
-
-  // Roulette Events
-  socket.on('requestSpin', () => {
-    const r = rooms.get(socket.roomCode);
-    if (r?.gameType === 'roulette') rouletteGame.handleSpinRequest(io, socket, r);
-  });
-
-  socket.on('requestNextTurn', () => {
-    const r = rooms.get(socket.roomCode);
-    if (r?.gameType === 'roulette') rouletteGame.handleNextTurn(io, r);
-  });
-
-  // --- SYSTÈME ---
-  socket.on('restartGame', () => {
-    const room = rooms.get(socket.roomCode);
-    if (!room || room.host !== socket.odId) return;
-
-    room.gameStarted = false;
-    hotSeatGame.initGame(room);
-    undercoverGame.initGame(room);
-    rouletteGame.initGame(room);
-
-    room.players.forEach(p => {
-      p.isAlive = true;
-      p.isUndercover = false;
-      p.isMrWhite = false;
-      p.word = null;
-      p.hasGivenHint = false;
-      p.submittedQuestions = [];
-    });
-
-    io.to(room.code).emit('gameRestarted', { players: formatPlayersArray(room.players) });
-  });
-
-  socket.on('disconnect', () => {
-    const room = rooms.get(socket.roomCode);
-    if (!room) return;
-
-    const player = room.players.get(socket.odId);
-    if (room.gameStarted && room.gameType === 'undercover' && player) {
-       player.isAlive = false;
-       io.to(room.code).emit('playerDisconnected', { 
-         playerName: player.name, 
-         players: formatPlayersArray(room.players) 
-       });
-    } else {
-      room.players.delete(socket.odId);
-    }
-
-    if (room.players.size === 0) {
-      console.log(`Salle ${socket.roomCode} vide. Suppression dans 5 min...`);
-      room.deleteTimeout = setTimeout(() => {
-        if (rooms.has(socket.roomCode)) rooms.delete(socket.roomCode);
-      }, 5 * 60 * 1000);
-    } else {
-      if (room.host === socket.odId) {
-        const newHost = Array.from(room.players.values()).find(p => p.isAlive !== false);
-        if (newHost) {
-          room.host = newHost.id;
-          newHost.isHost = true;
-        }
-      }
-      if (room.gameType === 'roulette') io.to(room.code).emit('roulettePlayerLeft');
-      else io.to(room.code).emit('playerLeft', { players: formatPlayersArray(room.players) });
-    }
-  });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🎉 Serveur lancé sur http://localhost:${PORT}`);
-});
+module.exports = { initGame, startGame, handleHint, handleVote, handleMrWhiteGuess };

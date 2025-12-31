@@ -53,7 +53,7 @@ function startGame(io, room, settings = {}) {
     undercoverCount = Math.floor((totalPlayers - (hasMrWhite ? 1 : 0)) / 3) || 1;
   }
   
-  const maxImpostors = totalPlayers - 1; // Il faut au moins 1 civil
+  const maxImpostors = totalPlayers - 1;
   const totalImpostors = undercoverCount + (hasMrWhite ? 1 : 0);
   
   if (totalImpostors > maxImpostors) {
@@ -66,7 +66,7 @@ function startGame(io, room, settings = {}) {
   const undercoverIds = shuffledIds.slice(0, undercoverCount);
   let mrWhiteId = null;
   if (hasMrWhite) {
-    mrWhiteId = shuffledIds[undercoverCount]; // Prend l'ID juste après les undercovers
+    mrWhiteId = shuffledIds[undercoverCount];
   }
 
   room.players.forEach((player, odId) => {
@@ -166,8 +166,6 @@ function handleHint(io, socket, room) {
 }
 
 function handleVote(io, socket, room, votedPlayerId) {
-  // Logique de vote, élimination et vérification de victoire
-  // (Code identique à l'original mais encapsulé)
   const voter = room.players.get(socket.odId);
   if (!voter || !voter.isAlive) return;
 

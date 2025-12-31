@@ -3,24 +3,54 @@ const { wordPairs } = require('../utils/data');
 const { shuffleArray, formatPlayersArray } = require('../utils/helpers');
 
 function getUndercoverCount(playerCount) {
+  // Helper pour affichage ou défaut, mais la logique principale est dans startGame
   if (playerCount <= 6) return 1;
   if (playerCount <= 12) return 2;
-  if (playerCount <= 18) return 3;
-  return 4;
+  return 3;
 }
 
+// --- NOUVELLE LOGIQUE DE VICTOIRE ---
 function checkVictory(room) {
   const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
-  const aliveUndercovers = alivePlayers.filter(p => p.isUndercover);
-  const aliveCivils = alivePlayers.filter(p => !p.isUndercover && !p.isMrWhite);
-  const aliveMrWhite = alivePlayers.filter(p => p.isMrWhite);
+  
+  const civilsCount = alivePlayers.filter(p => !p.isUndercover && !p.isMrWhite).length;
+  const impostorsCount = alivePlayers.filter(p => p.isUndercover || p.isMrWhite).length;
 
-  if (aliveUndercovers.length === 0 && aliveMrWhite.length === 0) {
-    return { gameOver: true, winner: 'civils', message: '🎉 Les Civils ont gagné !' };
+  console.log(`[CHECK] ${civilsCount} Civils vs ${impostorsCount} Imposteurs`);
+
+  // 1. Victoire des Civils (Plus aucun imposteur)
+  if (impostorsCount === 0) {
+    return { 
+      gameOver: true, 
+      winner: 'civils', 
+      message: '🎉 Les Civils ont gagné ! Tous les imposteurs sont éliminés.' 
+    };
   }
-  if (aliveUndercovers.length + aliveMrWhite.length >= aliveCivils.length) {
-    return { gameOver: true, winner: 'undercover', message: '🕵️ Les Undercovers ont gagné !' };
+
+  // 2. Victoire des Imposteurs
+  let impostorsWin = false;
+
+  if (impostorsCount === 1) {
+    // Exception Duel : 1 Imposteur vs 1 (ou 0) Civil => L'imposteur gagne
+    if (civilsCount <= 1) {
+      impostorsWin = true;
+    }
+  } else {
+    // Règle générale : Il faut être STRICTEMENT majoritaire
+    if (impostorsCount > civilsCount) {
+      impostorsWin = true;
+    }
   }
+
+  if (impostorsWin) {
+    return { 
+      gameOver: true, 
+      winner: 'impostors', 
+      message: '🕵️ Les Imposteurs ont pris le contrôle !' 
+    };
+  }
+
+  // Sinon, la partie continue
   return { gameOver: false };
 }
 
@@ -39,6 +69,7 @@ function startGame(io, room, settings = {}) {
   const shuffledIds = shuffleArray(playerIds);
   const totalPlayers = playerIds.length;
 
+  // 1. Gestion Mr White
   let hasMrWhite = false;
   if (settings.includeMrWhite !== undefined) {
     hasMrWhite = settings.includeMrWhite;
@@ -46,6 +77,7 @@ function startGame(io, room, settings = {}) {
     hasMrWhite = totalPlayers >= 5;
   }
 
+  // 2. Gestion Nombre Undercover
   let undercoverCount = 1;
   if (settings.undercoverCount) {
     undercoverCount = settings.undercoverCount;
@@ -53,20 +85,23 @@ function startGame(io, room, settings = {}) {
     undercoverCount = Math.floor((totalPlayers - (hasMrWhite ? 1 : 0)) / 3) || 1;
   }
   
+  // Sécurité (au moins 1 civil)
   const maxImpostors = totalPlayers - 1;
   const totalImpostors = undercoverCount + (hasMrWhite ? 1 : 0);
-  
   if (totalImpostors > maxImpostors) {
     undercoverCount = Math.max(1, maxImpostors - (hasMrWhite ? 1 : 0));
   }
 
+  // 3. Choix des mots
   const pairIndex = Math.floor(Math.random() * wordPairs.length);
   room.currentWordPair = wordPairs[pairIndex];
 
+  // 4. Attribution des rôles
   const undercoverIds = shuffledIds.slice(0, undercoverCount);
   let mrWhiteId = null;
   if (hasMrWhite) {
-    mrWhiteId = shuffledIds[undercoverCount];
+    // Prend l'ID suivant dans la liste mélangée
+    mrWhiteId = shuffledIds[undercoverCount]; 
   }
 
   room.players.forEach((player, odId) => {
@@ -80,7 +115,7 @@ function startGame(io, room, settings = {}) {
     } else if (odId === mrWhiteId) {
       player.isUndercover = false;
       player.isMrWhite = true;
-      player.word = "???"; // Pas de mot pour Mr White
+      player.word = "???";
     } else {
       player.isUndercover = false;
       player.isMrWhite = false;
@@ -94,24 +129,16 @@ function startGame(io, room, settings = {}) {
   room.votes.clear();
   room.eliminatedPlayers = [];
 
+  // 5. Envoi aux joueurs
   room.players.forEach((player) => {
     const pSocket = io.sockets.sockets.get(player.socketId);
     if (pSocket) {
       
       let roleToSend = 'civil';
-
-      if (player.isMrWhite) {
-        roleToSend = 'mrwhite';
-      } else if (player.isUndercover) {
-        if (settings.revealUndercover) {
-          roleToSend = 'undercover';
-        } else {
-          roleToSend = 'civil';
-        }
-      } else {
-        roleToSend = 'civil';
+      if (player.isMrWhite) roleToSend = 'mrwhite';
+      else if (player.isUndercover) {
+        roleToSend = settings.revealUndercover ? 'undercover' : 'civil';
       }
-      // -------------------------------
 
       pSocket.emit('gameStarted', {
         gameType: 'undercover',
@@ -167,9 +194,12 @@ function handleHint(io, socket, room) {
 
 function handleVote(io, socket, room, votedPlayerId) {
   const voter = room.players.get(socket.odId);
+  // Seuls les vivants votent (protection serveur)
   if (!voter || !voter.isAlive) return;
 
   room.votes.set(socket.odId, votedPlayerId);
+  
+  // On compte les vivants pour savoir combien de votes attendre
   const alivePlayers = Array.from(room.players.values()).filter(p => p.isAlive);
 
   io.to(room.code).emit('undercoverVoteReceived', {
@@ -178,7 +208,7 @@ function handleVote(io, socket, room, votedPlayerId) {
     totalPlayers: alivePlayers.length
   });
 
-  if (room.votes.size === alivePlayers.length) {
+  if (room.votes.size >= alivePlayers.length) {
     processElimination(io, room);
   }
 }
@@ -201,15 +231,20 @@ function processElimination(io, room) {
     }
   });
 
+  // Gestion Égalité
   if (eliminated.length > 1) {
     io.to(room.code).emit('undercoverTie', { message: 'Égalité ! Personne n\'est éliminé.' });
     startNewRound(io, room);
     return;
   }
 
+  // Elimination
   const eliminatedId = eliminated[0];
   const eliminatedPlayer = room.players.get(eliminatedId);
+  
+  // On le tue officiellement
   eliminatedPlayer.isAlive = false;
+  
   room.eliminatedPlayers.push({
     id: eliminatedId,
     name: eliminatedPlayer.name,
@@ -217,38 +252,33 @@ function processElimination(io, room) {
     wasMrWhite: eliminatedPlayer.isMrWhite
   });
 
-  // Gestion Mr White
+  // Afficher à tout le monde qui est mort
+  io.to(room.code).emit('undercoverElimination', {
+    eliminatedPlayer: eliminatedPlayer.name,
+    wasUndercover: eliminatedPlayer.isUndercover,
+    wasMrWhite: eliminatedPlayer.isMrWhite,
+    // Pas besoin d'envoyer voteDetails ici si l'écran switch direct, 
+    // mais on peut le garder pour l'historique
+    remainingPlayers: Array.from(room.players.values()).filter(p => p.isAlive).map(p => ({ id: p.id, name: p.name }))
+  });
+
+  // 1. Gestion Mr White (Prioritaire)
   if (eliminatedPlayer.isMrWhite) {
     const pSocket = io.sockets.sockets.get(eliminatedPlayer.socketId);
     if (pSocket) pSocket.emit('mrWhiteGuess', { message: 'Devine le mot !' });
-    io.to(room.code).emit('mrWhiteEliminated', { 
-        playerName: eliminatedPlayer.name, 
-        message: `${eliminatedPlayer.name} était Mr.White !` 
-    });
+    
+    // On met le jeu en pause pour attendre sa réponse
     room.waitingForMrWhite = eliminatedId;
-    return;
+    return; // ON S'ARRÊTE LÀ, on ne lance pas le round suivant ni check victory
   }
 
-  // Vérif victoire
+  // 2. Vérif victoire standard
   const victory = checkVictory(room);
-  const voteDetails = [];
-  room.votes.forEach((votedId, odId) => {
-    voteDetails.push({
-      voter: room.players.get(odId)?.name,
-      votedFor: room.players.get(votedId)?.name
-    });
-  });
 
   if (victory.gameOver) {
-    endGame(io, room, victory, voteDetails);
+    endGame(io, room, victory);
   } else {
-    io.to(room.code).emit('undercoverElimination', {
-      eliminatedPlayer: eliminatedPlayer.name,
-      wasUndercover: eliminatedPlayer.isUndercover,
-      wasMrWhite: eliminatedPlayer.isMrWhite,
-      voteDetails,
-      remainingPlayers: Array.from(room.players.values()).filter(p => p.isAlive).map(p => ({ id: p.id, name: p.name }))
-    });
+    // Si la partie continue, petit délai avant le round suivant
     setTimeout(() => startNewRound(io, room), 3000);
   }
 }
@@ -261,17 +291,22 @@ function handleMrWhiteGuess(io, socket, room, guessedWord) {
   room.waitingForMrWhite = null;
 
   if (guess === correctWord) {
+    // Mr White a trouvé : Victoire immédiate des Imposteurs
     endGame(io, room, { 
-        winner: 'mrwhite', 
+        winner: 'impostors', 
         message: `🎭 Mr.White a gagné en devinant "${room.currentWordPair[0]}" !` 
     });
   } else {
+    // Mr White a raté
+    io.to(room.code).emit('mrWhiteGuessFailed', { message: `Raté ! C'était pas "${guessedWord}".` });
+    
+    // IMPORTANT : On revérifie la victoire, car la mort de Mr White peut déclencher la victoire des civils
     const victory = checkVictory(room);
+    
     if (victory.gameOver) {
       endGame(io, room, victory);
     } else {
-      io.to(room.code).emit('mrWhiteGuessFailed', { message: `Raté ! C'était pas "${guessedWord}".` });
-      startNewRound(io, room);
+      setTimeout(() => startNewRound(io, room), 2000);
     }
   }
 }
@@ -280,8 +315,13 @@ function startNewRound(io, room) {
   room.roundNumber++;
   room.votes.clear();
   room.currentPlayerIndex = 0;
-  room.players.forEach(p => { if(p.isAlive) p.hasGivenHint = false; });
   
+  // Reset des indices pour les vivants uniquement
+  room.players.forEach(p => { 
+      if(p.isAlive) p.hasGivenHint = false; 
+  });
+  
+  // Nouvel ordre aléatoire parmi les vivants
   const alivePlayers = Array.from(room.players.entries()).filter(([, p]) => p.isAlive).map(([id]) => id);
   room.playerOrder = shuffleArray(alivePlayers);
 
@@ -293,6 +333,7 @@ function startNewRound(io, room) {
 }
 
 function endGame(io, room, victory, voteDetails = []) {
+  room.gameStarted = false;
   io.to(room.code).emit('undercoverGameEnd', {
     winner: victory.winner,
     message: victory.message,
